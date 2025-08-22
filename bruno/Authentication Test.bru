@@ -1,0 +1,27 @@
+meta {
+  name: Authentication Test
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/health
+  body: none
+  auth: basic
+}
+
+auth:basic {
+  username: {{auth_username}}
+  password: {{auth_password}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # Authentication Test
+  
+  Tests basic authentication against the LM Studio proxy.
+  This endpoint should return a 200 OK status with authentication.
+}

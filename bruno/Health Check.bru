@@ -1,0 +1,22 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/health
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # Health Check
+  
+  Simple health check endpoint that doesn't require authentication.
+  Returns basic status information about the LM Studio proxy service.
+}

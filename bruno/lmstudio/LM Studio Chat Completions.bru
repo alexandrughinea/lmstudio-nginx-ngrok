@@ -1,0 +1,42 @@
+meta {
+  name: LM Studio Chat Completions
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/chat/completions
+  body: json
+  auth: basic
+}
+
+auth:basic {
+  username: {{auth_username}}
+  password: {{auth_password}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "model": "{{lmstudio_model}}",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello! How are you today?"
+      }
+    ],
+    "temperature": 0.7,
+    "max_tokens": 150,
+    "stream": false
+  }
+}
+
+docs {
+  # LM Studio Chat Completions
+  
+  OpenAI-compatible chat completions endpoint for LM Studio.
+  This endpoint supports structured outputs via response_format parameter.
+}

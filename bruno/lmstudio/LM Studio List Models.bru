@@ -1,0 +1,27 @@
+meta {
+  name: LM Studio List Models
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/v1/models
+  body: none
+  auth: basic
+}
+
+auth:basic {
+  username: {{auth_username}}
+  password: {{auth_password}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # LM Studio List Models
+  
+  Lists all available models in LM Studio.
+  Returns OpenAI-compatible model list format.
+}

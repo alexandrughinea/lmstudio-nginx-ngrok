@@ -1,0 +1,73 @@
+meta {
+  name: LM Studio Chat Completions (with schema)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/chat/completions
+  body: json
+  auth: basic
+}
+
+auth:basic {
+  username: {{auth_username}}
+  password: {{auth_password}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "model": "{{lmstudio_model}}",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Extract information about this person: John Doe is a 30-year-old software engineer from San Francisco who loves hiking and photography."
+      }
+    ],
+    "temperature": 0.1,
+    "max_tokens": 200,
+    "stream": false,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "person_info",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "age": {
+              "type": "integer"
+            },
+            "profession": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "hobbies": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["name", "age", "profession", "location", "hobbies"]
+        }
+      }
+    }
+  }
+}
+
+docs {
+  # LM Studio Chat Completions with Structured Output
+  
+  Demonstrates LM Studio's structured output capabilities using JSON schema.
+  LM Studio enforces schema compliance at the inference level for high-quality results.
+}
