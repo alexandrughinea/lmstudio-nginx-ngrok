@@ -1,13 +1,14 @@
 # LM Studio Nginx Ngrok Setup
 
-This project provides a secure, authenticated proxy setup for LM Studio API access through nginx and ngrok.
+This project provides a secure tunnel, authenticated proxy setup for LM Studio API access through **nginx**, a **Fastify proxy with SQLite logging**, and **ngrok**.
 
-- **LM Studio Integration** - Direct proxy to LM Studio's OpenAI-compatible API
-- **Security** - Basic authentication, rate limiting, security headers  
+- **LM Studio Integration** - OpenAI-compatible `/v1/*` API proxied through a Fastify service
+- **Request/Response Logging** - All `/v1/*` requests and responses are stored in a local SQLite DB
+- **Security** - Basic authentication at nginx, rate limiting, security headers  
 - **Public Access** - Ngrok tunnel for external access
-- **Monitoring** - Health checks and access logging
-- **Containerized** - nginx and ngrok run in Docker, LM Studio runs locally
-- **Easy Setup** - Automated setup and management scripts
+- **Monitoring** - Health checks, status script, and access logging
+- **Containerized** - nginx, Fastify proxy, and ngrok run in Docker; LM Studio runs locally
+- **Easy Setup** - Automated setup and management scripts / Makefile targets
 
 ## Quick Start
 
@@ -29,75 +30,106 @@ This project provides a secure, authenticated proxy setup for LM Studio API acce
 
 3. **Start services:**
    ```bash
-   docker-compose up -d
+   # using Makefile
+   make start
+
+   # or directly
+   ./scripts/start.sh
    ```
 
-4. **Test the API:**
+4. **Test the OpenAI-compatible API:**
    ```bash
-   curl -u admin:secure_pass http://localhost:8080/api/tags
+   # List models (proxied through nginx → fastify → LM Studio)
+   curl -u admin:secure_pass "http://localhost:8080/v1/models"
+
+   # Simple chat completion
+   curl -u admin:secure_pass \
+     -H "Content-Type: application/json" \
+     -d '{
+       "model": "your-model",
+       "messages": [{"role": "user", "content": "Hello!"}],
+       "stream": false
+     }' \
+     "http://localhost:8080/v1/chat/completions"
    ```
 
 ## LM Studio Configuration
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LMSTUDIO_MODEL` | LM Studio model to use | `your-model` |
-| `LMSTUDIO_HOST` | LM Studio host | `localhost` |
-| `LMSTUDIO_PORT` | LM Studio port | `1234` |
-| `NGINX_PORT` | Nginx HTTP port | `8080` |
-| `NGINX_SSL_PORT` | Nginx HTTPS port | `8443` |
-| `NGROK_AUTHTOKEN` | Ngrok auth token | Required |
-| `NGROK_REGION` | Ngrok region | `us` |
-| `AUTH_USERNAME` | API username | `admin` |
-| `AUTH_PASSWORD` | API password | `secure_password_123` |
-| `RATE_LIMIT` | Rate limit | `10r/s` |
-| `SSL_ENABLED` | Enable SSL | `false` |
+| Variable                                    | Description                                          | Default                |
+|---------------------------------------------|------------------------------------------------------|------------------------|
+| `LMSTUDIO_MODEL`                            | LM Studio model to use                               | `your-model`           |
+| `LMSTUDIO_HOST`                             | LM Studio host                                       | `localhost`            |
+| `LMSTUDIO_PORT`                             | LM Studio port                                       | `1234`                 |
+| `LMSTUDIO_SQLITE_HOST_DIR`                  | Host directory for Fastify SQLite DB                 | `./fastify-proxy/data` |
+| `LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_SUCCESS` | Optional webhook URL on successful chat completion   | _empty_                |
+| `LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_ERROR`   | Optional webhook URL on chat error                   | _empty_                |
+| `LMSTUDIO_SQLITE_LOGGING`                   | Enable/disable SQLite logging (`"false"` to disable) | `true`                 |
+| `NGINX_PORT`                                | Nginx HTTP port                                      | `8080`                 |
+| `NGINX_SSL_PORT`                            | Nginx HTTPS port                                     | `8443`                 |
+| `NGROK_AUTHTOKEN`                           | Ngrok auth token                                     | Required               |
+| `NGROK_REGION`                              | Ngrok region                                         | `us`                   |
+| `AUTH_USERNAME`                             | API username                                         | `admin`                |
+| `AUTH_PASSWORD`                             | API password                                         | `secure_password_123`  |
+| `RATE_LIMIT`                                | Rate limit                                           | `10r/s`                |
+| `SSL_ENABLED`                               | Enable SSL                                           | `false`                |
+
 
 
 ## Architecture
 
 ```
-Internet → Ngrok → Docker Network → Nginx → Local LM Studio
-                                     ↓
-                               Authentication
-                               Rate Limiting
-                               Security Headers
+Internet → Ngrok → Docker Network → Nginx → Fastify Proxy → Local LM Studio
+                                             ↓
+                                       SQLite Logging
+                                       Authentication
+                                       Rate Limiting
+                                       Security Headers
 ```
 
 ## API Usage
 
-### Health Check
+### Health Check (nginx)
 ```bash
 curl http://localhost:8080/health
 ```
 
-### List Models
+### OpenAI-compatible LM Studio endpoints
+
+All LM Studio endpoints are exposed under `/v1/*` via nginx and the Fastify proxy.
+
+**List models**
 ```bash
-curl -u username:password http://localhost:8080/api/tags
+curl -u username:password "http://localhost:8080/v1/models"
 ```
 
-### Generate Response
+**Non-streaming chat completion**
 ```bash
-curl -u username:password http://localhost:8080/api/generate \
+curl -u username:password \
   -H "Content-Type: application/json" \
   -d '{
     "model": "llama2",
-    "prompt": "Hello, how are you?",
+    "messages": [
+      {"role": "user", "content": "Hello, how are you?"}
+    ],
     "stream": false
-  }'
+  }' \
+  "http://localhost:8080/v1/chat/completions"
 ```
 
-### Streaming Response
+**Streaming chat completion**
 ```bash
-curl -u username:password http://localhost:8080/api/generate \
+curl -u username:password \
   -H "Content-Type: application/json" \
   -d '{
     "model": "llama2",
-    "prompt": "Tell me a story",
+    "messages": [
+      {"role": "user", "content": "Tell me a story"}
+    ],
     "stream": true
-  }'
+  }' \
+  "http://localhost:8080/v1/chat/completions"
 ```
 
 ## Security Features
@@ -112,9 +144,10 @@ curl -u username:password http://localhost:8080/api/generate \
 ## Monitoring
 
 ### Service URLs
-- **Accessible**: Available on `localhost:1234`
+- **LM Studio local server**: `localhost:1234`
 - **Ngrok Dashboard**: `http://localhost:4040`
-- **Health Check**: `http://localhost:8080/health`
+- **Nginx health check**: `http://localhost:8080/health`
+- **Fastify proxy health** (inside Docker): `curl http://localhost:3000/health` from the `lmstudio-fastify-proxy` container
 
 ### Get Public URL
 ```bash
@@ -137,22 +170,32 @@ Use the new ngrok examples with authentication
 ### View Logs
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
-# Specific service
-docker-compose logs -f nginx
-docker-compose logs -f ngrok
+# Specific services
+docker compose logs -f nginx
+docker compose logs -f lmstudio-fastify-proxy
+docker compose logs -f ngrok
 
 # Nginx access logs
 tail -f logs/access.log
 ```
 
-## Management Scripts
+## Management Scripts & Make targets
 
-- `./setup.sh` - Initial setup and configuration
-- `./start.sh` - Start all services
-- `./stop.sh` - Stop Docker services
-- `./test-api.sh` - Test API functionality
+From the project root:
+
+- `./scripts/setup.sh` – Initial setup and configuration
+- `./scripts/start.sh` – Start all services (LM Studio must already be running)
+- `./scripts/stop.sh` – Stop Docker services
+- `./scripts/test-api.sh` – Test API functionality
+
+Or use the Makefile shortcuts:
+
+- `make setup` – Run setup script
+- `make start` – Start all services
+- `make stop` – Stop all services
+- `make status` – Show Docker status, LM Studio status, nginx health, and Fastify proxy health
 
 ## Troubleshooting
 

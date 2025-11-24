@@ -7,12 +7,7 @@ meta {
 post {
   url: {{base_url}}/v1/chat/completions
   body: json
-  auth: basic
-}
-
-auth:basic {
-  username: {{auth_username}}
-  password: {{auth_password}}
+  auth: inherit
 }
 
 headers {
@@ -21,6 +16,7 @@ headers {
 
 body:json {
   {
+    "id": "test-external-id-123",
     "model": "{{lmstudio_model}}",
     "messages": [
       {

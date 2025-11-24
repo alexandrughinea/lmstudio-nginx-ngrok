@@ -38,3 +38,9 @@ bruno/environments/*.bruidea/
 # Temporary files
 *.tmp
 *.temp
+
+# Databases
+*.db
+*.db-journal
+fastify-proxy/data/
+node_modules/

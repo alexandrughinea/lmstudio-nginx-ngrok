@@ -1,7 +1,7 @@
 meta {
   name: Authentication Test
   type: http
-  seq: 1
+  seq: 2
 }
 
 get {
@@ -10,13 +10,13 @@ get {
   auth: basic
 }
 
+headers {
+  Content-Type: application/json
+}
+
 auth:basic {
   username: {{auth_username}}
   password: {{auth_password}}
-}
-
-headers {
-  Content-Type: application/json
 }
 
 docs {

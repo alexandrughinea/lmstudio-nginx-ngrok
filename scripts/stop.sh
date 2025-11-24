@@ -6,7 +6,7 @@ if [ -f .env ]; then
     export $(grep -v '^#' .env | xargs)
 fi
 
-echo "⦿ Stopping LM Studio, Nginx, Ngrok services..."
+echo "⦿ Stopping LM Studio, Fastify proxy, Nginx, Ngrok services..."
 
 if command -v lms >/dev/null 2>&1; then
     echo "⦿ Unloading models in LM Studio..."

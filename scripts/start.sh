@@ -2,7 +2,7 @@
 
 set -e
 
-echo "⦿ Starting LM Studio, Nginx, Ngrok services..."
+echo "⦿ Starting LM Studio, Fastify proxy, Nginx, Ngrok services..."
 
 if [ -f .env ]; then
     source .env
@@ -48,8 +48,9 @@ else
 fi
 
 echo "⦿ Verifying HTTP API access..."
-if curl -s "http://${LMSTUDIO_HOST}:${LMSTUDIO_PORT}/v1/models" > /dev/null 2>&1; then
-    echo "LM Studio API is accessible at ${LMSTUDIO_HOST}:${LMSTUDIO_PORT}"
+HOST_FOR_CHECK=${LMSTUDIO_HOST:-localhost}
+if curl -s "http://${HOST_FOR_CHECK}:${LMSTUDIO_PORT}/v1/models" > /dev/null 2>&1; then
+    echo "LM Studio API is accessible at ${HOST_FOR_CHECK}:${LMSTUDIO_PORT}"
 else
     echo "Cannot access LM Studio API at ${LMSTUDIO_HOST}:${LMSTUDIO_PORT}"
     echo "   Please start LM Studio server first:"

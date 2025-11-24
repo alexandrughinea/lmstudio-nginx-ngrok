@@ -3,7 +3,7 @@ server {
     server_name _;
     
     # Global settings
-    client_max_body_size 100M;
+    client_max_body_size 10M;
     
     # Global authentication
     auth_basic "LM Studio API Access";

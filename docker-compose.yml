@@ -27,6 +27,24 @@ services:
       - lmstudio-network
     restart: unless-stopped
 
+  fastify-proxy:
+    build: ./fastify-proxy
+    container_name: lmstudio-fastify-proxy
+    environment:
+      - PROXY_PORT=3000
+      - LMSTUDIO_HOST=host.docker.internal    # always host machine, from container
+      - LMSTUDIO_PORT=${LMSTUDIO_PORT:-1234}
+      - LMSTUDIO_SQLITE_PATH=/data/lmstudio-proxy.db
+      - LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE=${LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE:-}
+      - LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS=${LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS:-}
+    volumes:
+      # Host directory where the SQLite DB is stored; override with LMSTUDIO_SQLITE_HOST_DIR in .env if desired.
+      # Example in .env (host): LMSTUDIO_SQLITE_HOST_DIR=./fastify-proxy/data
+      - ${LMSTUDIO_SQLITE_HOST_DIR:-./fastify-proxy/data}:/data
+    networks:
+      - lmstudio-network
+    restart: unless-stopped
+
   ngrok:
     image: ngrok/ngrok:latest
     container_name: lmstudio-ngrok
@@ -47,3 +65,6 @@ services:
 networks:
   lmstudio-network:
     driver: bridge
+
+volumes:
+  fastify-proxy-data:
