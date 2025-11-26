@@ -57,23 +57,34 @@ This project provides a secure tunnel, authenticated proxy setup for LM Studio A
 
 ### Environment Variables
 
-| Variable                                    | Description                                          | Default                |
-|---------------------------------------------|------------------------------------------------------|------------------------|
-| `LMSTUDIO_MODEL`                            | LM Studio model to use                               | `your-model`           |
-| `LMSTUDIO_HOST`                             | LM Studio host                                       | `localhost`            |
-| `LMSTUDIO_PORT`                             | LM Studio port                                       | `1234`                 |
-| `LMSTUDIO_SQLITE_HOST_DIR`                  | Host directory for Fastify SQLite DB                 | `./fastify-proxy/data` |
-| `LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_SUCCESS` | Optional webhook URL on successful chat completion   | _empty_                |
-| `LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_ERROR`   | Optional webhook URL on chat error                   | _empty_                |
-| `LMSTUDIO_SQLITE_LOGGING`                   | Enable/disable SQLite logging (`"false"` to disable) | `true`                 |
-| `NGINX_PORT`                                | Nginx HTTP port                                      | `8080`                 |
-| `NGINX_SSL_PORT`                            | Nginx HTTPS port                                     | `8443`                 |
-| `NGROK_AUTHTOKEN`                           | Ngrok auth token                                     | Required               |
-| `NGROK_REGION`                              | Ngrok region                                         | `us`                   |
-| `AUTH_USERNAME`                             | API username                                         | `admin`                |
-| `AUTH_PASSWORD`                             | API password                                         | `secure_password_123`  |
-| `RATE_LIMIT`                                | Rate limit                                           | `10r/s`                |
-| `SSL_ENABLED`                               | Enable SSL                                           | `false`                |
+| Variable                               | Description                                                                 | Default                 |
+|----------------------------------------|-----------------------------------------------------------------------------|-------------------------|
+| `LMSTUDIO_MODEL`                       | LM Studio model to use (must be available in LM Studio)                    | `google/gemma-3-12b`   |
+| `LMSTUDIO_HOST`                        | LM Studio server host                                                      | `localhost`             |
+| `LMSTUDIO_PORT`                        | LM Studio server port                                                      | `1234`                  |
+| `LMSTUDIO_SQLITE_HOST_DIR`             | Host directory for Fastify SQLite DB                                       | `./fastify-proxy/data`  |
+| `LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE`    | Optional webhook URL fired after chat completions                          | _empty_                 |
+| `LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS` | Optional JSON headers sent with the webhook request                   | _empty_                 |
+| `LMSTUDIO_SQLITE_LOGGING`              | Enable/disable SQLite logging (`"false" to disable)                        | `true`                  |
+| `LMSTUDIO_SQLITE_PRIVACY_TRIM`         | When `true`, store only trimmed+hashed request/response bodies in SQLite   | `false`                 |
+| `NGINX_PORT`                           | Nginx HTTP port                                                            | `8080`                  |
+| `NGINX_SSL_PORT`                       | Nginx HTTPS port                                                           | `8443`                  |
+| `NGINX_PROXY_CONNECT_TIMEOUT`          | Nginx proxy connect timeout (seconds)                                      | `90`                    |
+| `NGINX_PROXY_SEND_TIMEOUT`             | Nginx proxy send timeout (seconds)                                         | `330`                   |
+| `NGINX_PROXY_READ_TIMEOUT`             | Nginx proxy read timeout (seconds)                                         | `330`                   |
+| `NGROK_AUTHTOKEN`                      | Ngrok auth token                                                           | Required                |
+| `NGROK_REGION`                         | Ngrok region                                                               | `us`                    |
+| `AUTH_USERNAME`                        | API username                                                               | `admin`                 |
+| `AUTH_PASSWORD`                        | API password                                                               | `secure_password_123`   |
+| `RATE_LIMIT`                           | Rate limit                                                                 | `10r/s`                 |
+| `RATE_BURST`                           | Rate limit burst                                                           | `20`                    |
+| `VLLM_BRIDGE_ENABLED`                  | Enable optional VLLM bridge profile in `docker-compose`                    | `true`                  |
+| `VLLM_BRIDGE_PORT`                     | VLLM bridge service port                                                   | `8000`                  |
+| `VLLM_BRIDGE_CHAT_TIMEOUT`             | VLLM bridge chat completion timeout (seconds)                              | `300`                   |
+| `VLLM_BRIDGE_MODELS_TIMEOUT`           | VLLM bridge models endpoint timeout (seconds)                              | `30`                    |
+| `SSL_ENABLED`                          | Enable SSL termination in nginx                                            | `false`                 |
+| `SSL_CERT_PATH`                        | Path to SSL certificate inside the container                               | `./certs/server.crt`    |
+| `SSL_KEY_PATH`                         | Path to SSL private key inside the container                               | `./certs/server.key`    |
 
 
 
