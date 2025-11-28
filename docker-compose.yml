@@ -37,6 +37,8 @@ services:
       - LMSTUDIO_SQLITE_PATH=/data/lmstudio-proxy.db
       - LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE=${LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE:-}
       - LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS=${LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS:-}
+      - LMSTUDIO_REQUEST_TIMEOUT=${LMSTUDIO_REQUEST_TIMEOUT:-600000}
+      - LMSTUDIO_WEBHOOK_TIMEOUT=${LMSTUDIO_WEBHOOK_TIMEOUT:-30000}
     volumes:
       # Host directory where the SQLite DB is stored; override with LMSTUDIO_SQLITE_HOST_DIR in .env if desired.
       # Example in .env (host): LMSTUDIO_SQLITE_HOST_DIR=./fastify-proxy/data

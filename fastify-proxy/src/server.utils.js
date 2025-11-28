@@ -4,6 +4,7 @@ import {
   LMSTUDIO_SQLITE_PRIVACY_TRIM,
   LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE,
   LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS,
+  LMSTUDIO_WEBHOOK_TIMEOUT,
 } from './server.const.js';
 
 function parseWebhookHeaders(envHeaders) {
@@ -49,13 +50,17 @@ export async function callWebhook(fastify, webhookPayload, webhookEventType) {
   try {
     fastify?.log.info({ url, webhookEventType }, 'Calling webhook');
 
-    await undiciRequest(url, {
+    const response = await undiciRequest(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(webhookPayload),
+      headersTimeout: LMSTUDIO_WEBHOOK_TIMEOUT,
+      bodyTimeout: LMSTUDIO_WEBHOOK_TIMEOUT,
     });
 
-    fastify?.log.info({ url, webhookEventType }, 'Webhook call succeeded');
+    await response.body.text();
+
+    fastify?.log.info({ url, webhookEventType, statusCode: response.statusCode }, 'Webhook call succeeded');
   } catch (err) {
     fastify?.log.error({ err, url, webhookEventType }, 'Failed to call webhook');
   }

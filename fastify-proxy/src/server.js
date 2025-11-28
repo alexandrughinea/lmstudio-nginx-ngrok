@@ -18,6 +18,7 @@ import {
   INSERT_RESPONSE_QUERY,
   LMSTUDIO_HOST,
   LMSTUDIO_PORT,
+  LMSTUDIO_REQUEST_TIMEOUT,
   LMSTUDIO_SQLITE_LOGGING,
   LMSTUDIO_SQLITE_PATH,
   PROXY_PORT,
@@ -81,6 +82,9 @@ fastify.all('/v1/*', async (request, reply) => {
       method: request.method,
       body: body ? JSON.stringify(body) : undefined,
       headers: upstreamHeaders,
+      headersTimeout: LMSTUDIO_REQUEST_TIMEOUT,
+      bodyTimeout: LMSTUDIO_REQUEST_TIMEOUT,
+      reset: true,
     });
 
     if (!isChatCompletion) {

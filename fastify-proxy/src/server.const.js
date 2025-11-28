@@ -9,6 +9,8 @@ export const LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS =
 export const LMSTUDIO_SQLITE_PATH = process.env.LMSTUDIO_SQLITE_PATH || '/data/lmstudio-proxy.db';
 export const LMSTUDIO_SQLITE_LOGGING = process.env.LMSTUDIO_SQLITE_LOGGING !== 'false';
 export const LMSTUDIO_SQLITE_PRIVACY_TRIM = process.env.LMSTUDIO_SQLITE_PRIVACY_TRIM === 'true';
+export const LMSTUDIO_REQUEST_TIMEOUT = parseInt(process.env.LMSTUDIO_REQUEST_TIMEOUT || '600000', 10); // 10 minutes default
+export const LMSTUDIO_WEBHOOK_TIMEOUT = parseInt(process.env.LMSTUDIO_WEBHOOK_TIMEOUT || '30000', 10); // 30 seconds default
 
 export const CREATE_REQUESTS_TABLE = `
     CREATE TABLE IF NOT EXISTS requests

@@ -67,6 +67,8 @@ This project provides a secure tunnel, authenticated proxy setup for LM Studio A
 | `LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS` | Optional JSON headers sent with the webhook request                   | _empty_                 |
 | `LMSTUDIO_SQLITE_LOGGING`              | Enable/disable SQLite logging (`"false" to disable)                        | `true`                  |
 | `LMSTUDIO_SQLITE_PRIVACY_TRIM`         | When `true`, store only trimmed+hashed request/response bodies in SQLite   | `false`                 |
+| `LMSTUDIO_REQUEST_TIMEOUT`             | Timeout for LM Studio requests in milliseconds (for long inference tasks)  | `600000` (10 minutes)   |
+| `LMSTUDIO_WEBHOOK_TIMEOUT`             | Timeout for webhook calls in milliseconds                                  | `30000` (30 seconds)    |
 | `NGINX_PORT`                           | Nginx HTTP port                                                            | `8080`                  |
 | `NGINX_SSL_PORT`                       | Nginx HTTPS port                                                           | `8443`                  |
 | `NGINX_PROXY_CONNECT_TIMEOUT`          | Nginx proxy connect timeout (seconds)                                      | `90`                    |
