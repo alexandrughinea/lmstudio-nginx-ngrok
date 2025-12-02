@@ -126,13 +126,47 @@ LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET="k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc
 
 ## Architecture
 
-```
-Internet → Ngrok → Docker Network → Nginx → Fastify Proxy → Local LM Studio
-                                             ↓
-                                       Encrypted SQLite Cache
-                                       Authentication
-                                       Rate Limiting
-                                       Security Headers
+```mermaid
+flowchart LR
+  subgraph ClientSide[Client Side]
+    U[API Client / SDK]
+  end
+
+  subgraph NgrokSide[Public Tunnel]
+    NG[Ngrok Tunnel\nregion=${NGROK_REGION}]
+  end
+
+  subgraph DockerNet[Docker Network: lmstudio-network]
+    subgraph NginxSvc[Nginx]
+      NX["Nginx\nPorts 80/443\nAuth: .htpasswd\nTLS: certs/"]
+    end
+
+    subgraph FastifySvc[Fastify Proxy]
+      FP["Fastify LM Studio Proxy\nPort ${PROXY_PORT:-3000}"]
+      DB[("Encrypted SQLite DB\n${LMSTUDIO_PROXY_SQLITE_PATH}")]
+    end
+  end
+
+  subgraph HostSide[Host Machine]
+    LM["LM Studio Local Server\n${LMSTUDIO_HOST}:${LMSTUDIO_PORT}"]
+    ENV[".env (gitignored)\nNGINX_BASIC_AUTH_*\nLMSTUDIO_*\nNGROK_AUTHTOKEN"]
+    CFG["Generated nginx/*.conf\n(scripts/nginx/setup.sh)"]
+  end
+
+  %% Request flow
+  U -->|HTTPS request\nBasic Auth| NG
+  NG -->|HTTPS https://nginx:443| NX
+  NX -->|/v1/* proxied| FP
+  FP -->|OpenAI-compatible\n/v1/*| LM
+
+  %% Persistence & webhooks
+  FP <-->|Encrypted cache\n(using LMSTUDIO_SQLITE_ENCRYPTION_KEY)| DB
+
+  %% Configuration flow
+  ENV --> CFG
+  CFG --> NX
+  ENV --> FP
+  ENV --> NG
 ```
 
 ## API Usage
