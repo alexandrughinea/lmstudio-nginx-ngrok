@@ -3,13 +3,13 @@
 
 # Default target
 help: ## Show this help message
-	@echo "LM Studio Nginx Ngrok - Available Commands:"
+	@echo "LM Studio, Fastify, Nginx, Ngrok - Available Commands:"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 
 setup: ## Setup the environment and dependencies
-	@echo "⦿ Setting up LM Studio Nginx Ngrok..."
+	@echo "⦿ Setting up LM Studio, Fastify, Nginx, Ngrok..."
 	@chmod +x scripts/*.sh
 	@./scripts/setup.sh
 

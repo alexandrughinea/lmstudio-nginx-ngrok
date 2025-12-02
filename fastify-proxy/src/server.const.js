@@ -2,15 +2,23 @@ export const ENCODING = 'utf8';
 export const LMSTUDIO_HOST = process.env.LMSTUDIO_HOST || 'host.docker.internal';
 export const LMSTUDIO_PORT = process.env.LMSTUDIO_PORT || '1234';
 export const PROXY_PORT = process.env.PROXY_PORT || '3000';
-export const LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE =
-  process.env.LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE || '';
-export const LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS =
-  process.env.LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS || '';
-export const LMSTUDIO_SQLITE_PATH = process.env.LMSTUDIO_SQLITE_PATH || '/data/lmstudio-proxy.db';
-export const LMSTUDIO_SQLITE_LOGGING = process.env.LMSTUDIO_SQLITE_LOGGING !== 'false';
-export const LMSTUDIO_SQLITE_PRIVACY_TRIM = process.env.LMSTUDIO_SQLITE_PRIVACY_TRIM === 'true';
-export const LMSTUDIO_REQUEST_TIMEOUT = parseInt(process.env.LMSTUDIO_REQUEST_TIMEOUT || '600000', 10); // 10 minutes default
-export const LMSTUDIO_WEBHOOK_TIMEOUT = parseInt(process.env.LMSTUDIO_WEBHOOK_TIMEOUT || '30000', 10); // 30 seconds default
+export const LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE =
+  process.env.LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE || '';
+export const LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS =
+  process.env.LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS || '';
+export const LMSTUDIO_PROXY_SQLITE_PATH = process.env.LMSTUDIO_PROXY_SQLITE_PATH || '/data/lmstudio-proxy.db';
+export const LMSTUDIO_PROXY_SQLITE_CACHE = process.env.LMSTUDIO_PROXY_SQLITE_CACHE !== 'false';
+export const LMSTUDIO_PROXY_REQUEST_TIMEOUT = parseInt(
+  process.env.LMSTUDIO_PROXY_REQUEST_TIMEOUT || '900000',
+  10,
+); // 15 minutes default
+export const LMSTUDIO_PROXY_WEBHOOK_TIMEOUT = parseInt(
+  process.env.LMSTUDIO_PROXY_WEBHOOK_TIMEOUT || '30000',
+  10,
+); // 30 seconds default
+export const LMSTUDIO_SQLITE_ENCRYPTION_KEY = process.env.LMSTUDIO_SQLITE_ENCRYPTION_KEY || '';
+export const LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET =
+  process.env.LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET || '';
 
 export const CREATE_REQUESTS_TABLE = `
     CREATE TABLE IF NOT EXISTS requests
@@ -70,6 +78,17 @@ export const CREATE_RESPONSES_TABLE = `
         id
     )
         );
+`;
+
+export const SELECT_LATEST_SUCCESS_RESPONSE_BY_EXTERNAL_ID = `
+    SELECT
+        response_body,
+        status_code
+    FROM responses
+    WHERE external_id = ?
+      AND status = ?
+    ORDER BY created_at DESC
+    LIMIT 1
 `;
 
 export const INSERT_REQUEST_QUERY = `

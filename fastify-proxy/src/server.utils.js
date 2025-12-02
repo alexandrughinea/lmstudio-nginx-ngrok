@@ -1,10 +1,9 @@
 import { request as undiciRequest } from 'undici';
 import {
   ENCODING,
-  LMSTUDIO_SQLITE_PRIVACY_TRIM,
-  LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE,
-  LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS,
-  LMSTUDIO_WEBHOOK_TIMEOUT,
+  LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE,
+  LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS,
+  LMSTUDIO_PROXY_WEBHOOK_TIMEOUT,
 } from './server.const.js';
 
 function parseWebhookHeaders(envHeaders) {
@@ -20,31 +19,19 @@ function parseWebhookHeaders(envHeaders) {
 }
 
 export function sanitizeForLogging(text) {
-  if (!LMSTUDIO_SQLITE_PRIVACY_TRIM) {
-    return text;
-  }
-
-  const maxLength = 256;
-  const preview = text.slice(0, maxLength);
-  const hash = crypto.createHash('sha256').update(text, ENCODING).digest('hex');
-
-  return JSON.stringify({
-    preview,
-    hash,
-    length: text.length,
-  });
+  return text;
 }
 
 export async function callWebhook(fastify, webhookPayload, webhookEventType) {
-  if (!LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE) {
-    fastify?.log.warn('LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE is not set; skipping webhook');
+  if (!LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE) {
+    fastify?.log.warn('LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE is not set; skipping webhook');
     return;
   }
 
-  const separator = LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE.includes('?') ? '&' : '?';
+  const separator = LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE.includes('?') ? '&' : '?';
   const encodedEventType = encodeURIComponent(webhookEventType);
-  const url = `${LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE}${separator}eventType=${encodedEventType}`;
-  const parsedHeaders = parseWebhookHeaders(LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS);
+  const url = `${LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE}${separator}eventType=${encodedEventType}`;
+  const parsedHeaders = parseWebhookHeaders(LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS);
   const headers = new Headers(parsedHeaders);
 
   try {
@@ -54,13 +41,16 @@ export async function callWebhook(fastify, webhookPayload, webhookEventType) {
       method: 'POST',
       headers,
       body: JSON.stringify(webhookPayload),
-      headersTimeout: LMSTUDIO_WEBHOOK_TIMEOUT,
-      bodyTimeout: LMSTUDIO_WEBHOOK_TIMEOUT,
+      headersTimeout: LMSTUDIO_PROXY_WEBHOOK_TIMEOUT,
+      bodyTimeout: LMSTUDIO_PROXY_WEBHOOK_TIMEOUT,
     });
 
     await response.body.text();
 
-    fastify?.log.info({ url, webhookEventType, statusCode: response.statusCode }, 'Webhook call succeeded');
+    fastify?.log.info(
+      { url, webhookEventType, statusCode: response.statusCode },
+      'Webhook call succeeded',
+    );
   } catch (err) {
     fastify?.log.error({ err, url, webhookEventType }, 'Failed to call webhook');
   }

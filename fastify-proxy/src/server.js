@@ -18,16 +18,23 @@ import {
   INSERT_RESPONSE_QUERY,
   LMSTUDIO_HOST,
   LMSTUDIO_PORT,
-  LMSTUDIO_REQUEST_TIMEOUT,
-  LMSTUDIO_SQLITE_LOGGING,
-  LMSTUDIO_SQLITE_PATH,
+  LMSTUDIO_PROXY_SQLITE_CACHE,
+  LMSTUDIO_PROXY_REQUEST_TIMEOUT,
+  LMSTUDIO_SQLITE_ENCRYPTION_KEY,
+  LMSTUDIO_PROXY_SQLITE_PATH,
   PROXY_PORT,
+  SELECT_LATEST_SUCCESS_RESPONSE_BY_EXTERNAL_ID,
 } from './server.const.js';
-import { callWebhook, sanitizeForLogging } from './server.utils.js';
+import { callWebhook } from './server.utils.js';
+import { EncryptionService } from './services/encryption.service.js';
+import { SigningService } from './services/signing.service.js';
+
+const encryptionService = new EncryptionService(LMSTUDIO_SQLITE_ENCRYPTION_KEY);
+const signingService = new SigningService();
 
 const db = (function dbInitialization() {
-  fs.mkdirSync(path.dirname(LMSTUDIO_SQLITE_PATH), { recursive: true });
-  const db = new Database(LMSTUDIO_SQLITE_PATH);
+  fs.mkdirSync(path.dirname(LMSTUDIO_PROXY_SQLITE_PATH), { recursive: true });
+  const db = new Database(LMSTUDIO_PROXY_SQLITE_PATH);
 
   db.exec(`
         ${CREATE_REQUESTS_TABLE}
@@ -36,15 +43,17 @@ const db = (function dbInitialization() {
 
   const insertRequest = db.prepare(INSERT_REQUEST_QUERY);
   const insertResponse = db.prepare(INSERT_RESPONSE_QUERY);
+  const selectLatestByExternalId = db.prepare(SELECT_LATEST_SUCCESS_RESPONSE_BY_EXTERNAL_ID);
 
   return {
     insertRequest,
     insertResponse,
+    selectLatestByExternalId,
   };
 })();
 
 const fastify = Fastify({
-  logger: LMSTUDIO_SQLITE_LOGGING,
+  logger: LMSTUDIO_PROXY_SQLITE_CACHE,
 });
 
 fastify.all('/v1/*', async (request, reply) => {
@@ -61,13 +70,50 @@ fastify.all('/v1/*', async (request, reply) => {
   const requestId = uuidv4();
   const externalId = body?.id;
 
-  if (LMSTUDIO_SQLITE_LOGGING) {
+  if (externalId) {
+    try {
+      const cached = db.selectLatestByExternalId.get(externalId, WebhookStatusSchema.enum.success);
+
+      if (cached && cached.response_body) {
+        const decryptedBody = encryptionService.decrypt(cached.response_body);
+        reply.code(cached.status_code || 200);
+        reply.header('content-type', 'application/json');
+        reply.send(decryptedBody);
+
+        try {
+          const parsedResponse = (() => {
+            try {
+              return JSON.parse(decryptedBody);
+            } catch {
+              return { raw: decryptedBody };
+            }
+          })();
+          const payload = WebhookSuccessPayloadSchema.parse({
+            id: externalId,
+            status: WebhookStatusSchema.enum.success,
+            request: body || null,
+            response: parsedResponse,
+            timestamp: new Date().toISOString(),
+          });
+          await callWebhook(fastify, payload, WebhookEventTypeSchema.enum.success);
+        } catch (error) {
+          fastify.log.error({ error }, 'Failed to call success webhook (cache hit)');
+        }
+
+        return;
+      }
+    } catch (error) {
+      fastify.log.error({ error }, 'Failed to read cached response by external_id');
+    }
+  }
+
+  if (LMSTUDIO_PROXY_SQLITE_CACHE) {
     try {
       const requestBodyText = JSON.stringify(body || {});
-      const requestBodyTextSanitized = sanitizeForLogging(requestBodyText);
-      db.insertRequest.run(requestId, externalId, request.raw.url, requestBodyTextSanitized);
-    } catch (e) {
-      fastify.log.error({ e }, 'Failed to insert request in DB');
+      const encryptedRequestBody = encryptionService.encrypt(requestBodyText);
+      db.insertRequest.run(requestId, externalId, request.raw.url, encryptedRequestBody);
+    } catch (error) {
+      fastify.log.error({ error }, 'Failed to insert request in DB');
     }
   }
 
@@ -82,8 +128,8 @@ fastify.all('/v1/*', async (request, reply) => {
       method: request.method,
       body: body ? JSON.stringify(body) : undefined,
       headers: upstreamHeaders,
-      headersTimeout: LMSTUDIO_REQUEST_TIMEOUT,
-      bodyTimeout: LMSTUDIO_REQUEST_TIMEOUT,
+      headersTimeout: LMSTUDIO_PROXY_REQUEST_TIMEOUT,
+      bodyTimeout: LMSTUDIO_PROXY_REQUEST_TIMEOUT,
       reset: true,
     });
 
@@ -101,11 +147,19 @@ fastify.all('/v1/*', async (request, reply) => {
         reply.header('content-type', ct);
       }
 
-      if (LMSTUDIO_SQLITE_LOGGING) {
+      try {
+        const responseTextForSignature = bodyBuffer.toString();
+        const signature = await signingService.createHmac(responseTextForSignature);
+        if (signature) {
+          reply.header('x-response-signature', signature);
+        }
+      } catch {}
+
+      if (LMSTUDIO_PROXY_SQLITE_CACHE) {
         try {
           const responseId = uuidv4();
           const responseText = bodyBuffer.toString();
-          const responseTextSanitized = sanitizeForLogging(responseText);
+          const encryptedResponseBody = encryptionService.encrypt(responseText);
 
           db.insertResponse.run(
             responseId,
@@ -113,10 +167,10 @@ fastify.all('/v1/*', async (request, reply) => {
             externalId,
             WebhookStatusSchema.enum.success,
             upstream.statusCode,
-            responseTextSanitized,
+            encryptedResponseBody,
           );
-        } catch (e) {
-          fastify.log.error({ e }, 'Failed to insert non-chat response');
+        } catch (error) {
+          fastify.log.error({ error }, 'Failed to insert non-chat response');
         }
       }
 
@@ -140,12 +194,19 @@ fastify.all('/v1/*', async (request, reply) => {
 
       const text = Buffer.concat(chunks).toString(ENCODING);
 
+      try {
+        const signature = await signingService.createHmac(text);
+        if (signature) {
+          reply.header('x-response-signature', signature);
+        }
+      } catch {}
+
       reply.send(text);
 
-      if (LMSTUDIO_SQLITE_LOGGING) {
+      if (LMSTUDIO_PROXY_SQLITE_CACHE) {
         try {
           const responseId = uuidv4();
-          const responseBodyForLog = sanitizeForLogging(text);
+          const encryptedResponseBody = encryptionService.encrypt(text);
 
           db.insertResponse.run(
             responseId,
@@ -153,10 +214,10 @@ fastify.all('/v1/*', async (request, reply) => {
             externalId,
             WebhookStatusSchema.enum.success,
             upstream.statusCode,
-            responseBodyForLog,
+            encryptedResponseBody,
           );
-        } catch (e) {
-          fastify.log.error({ e }, 'Failed to insert non-stream response');
+        } catch (error) {
+          fastify.log.error({ error }, 'Failed to insert non-stream response');
         }
       }
 
@@ -176,8 +237,8 @@ fastify.all('/v1/*', async (request, reply) => {
           timestamp: new Date().toISOString(),
         });
         await callWebhook(fastify, payload, WebhookEventTypeSchema.enum.success);
-      } catch (err) {
-        fastify.log.error({ err }, 'Failed to call success webhook');
+      } catch (error) {
+        fastify.log.error({ error }, 'Failed to call success webhook');
       }
       return;
     }
@@ -192,20 +253,21 @@ fastify.all('/v1/*', async (request, reply) => {
       reply.raw.end();
       const text = Buffer.concat(chunks).toString(ENCODING);
 
-      if (LMSTUDIO_SQLITE_LOGGING) {
+      if (LMSTUDIO_PROXY_SQLITE_CACHE) {
         try {
           const responseId = uuidv4();
-          const responseBodyForLog = sanitizeForLogging(text);
+          const encryptedResponseBody = encryptionService.encrypt(text);
+
           db.insertResponse.run(
             responseId,
             requestId,
             externalId,
             WebhookStatusSchema.enum.success,
             upstream.statusCode,
-            responseBodyForLog,
+            encryptedResponseBody,
           );
-        } catch (e) {
-          fastify.log.error({ e }, 'Failed to insert stream response');
+        } catch (error) {
+          fastify.log.error({ error }, 'Failed to insert stream response');
         }
       }
 
@@ -218,12 +280,12 @@ fastify.all('/v1/*', async (request, reply) => {
           timestamp: new Date().toISOString(),
         });
         await callWebhook(fastify, payload, WebhookEventTypeSchema.enum.success);
-      } catch (err) {
-        fastify.log.error({ err }, 'Failed to call success webhook (stream)');
+      } catch (error) {
+        fastify.log.error({ error }, 'Failed to call success webhook (stream)');
       }
     });
 
-    upstream.body.on('error', async (err) => {
+    upstream.body.on('error', async (error) => {
       if (!reply.raw?.writableEnded) {
         reply.raw.end();
       }
@@ -232,62 +294,63 @@ fastify.all('/v1/*', async (request, reply) => {
         id: externalId,
         status: WebhookStatusSchema.enum.error,
         request: body,
-        error: { message: err.message },
+        error: { message: error.message },
         timestamp: new Date().toISOString(),
       });
 
-      if (LMSTUDIO_SQLITE_LOGGING) {
-        fastify.log.error({ err }, 'Upstream stream error');
+      if (LMSTUDIO_PROXY_SQLITE_CACHE) {
+        fastify.log.error({ error }, 'Upstream stream error');
         try {
           const responseId = uuidv4();
           const errorBodyText = JSON.stringify(errorPayload.error);
-          const errorBodyForLog = sanitizeForLogging(errorBodyText);
+          const encryptedErrorBody = encryptionService.encrypt(errorBodyText);
+
           db.insertResponse.run(
             responseId,
             requestId,
             externalId,
             WebhookStatusSchema.enum.error,
             upstream.statusCode || 500,
-            errorBodyForLog,
+            encryptedErrorBody,
           );
-        } catch (e) {
-          fastify.log.error({ e }, 'Failed to insert stream error response');
+        } catch (error) {
+          fastify.log.error({ error }, 'Failed to insert stream error response');
         }
       }
       await callWebhook(fastify, errorPayload, WebhookEventTypeSchema.enum.error);
     });
-  } catch (err) {
-    fastify.log.error({ err }, 'Error proxying to LM Studio');
+  } catch (error) {
+    fastify.log.error({ error }, 'error proxying to LM Studio');
 
-    if (isChatCompletion && LMSTUDIO_SQLITE_LOGGING) {
+    if (isChatCompletion && LMSTUDIO_PROXY_SQLITE_CACHE) {
       const errorPayload = WebhookErrorPayloadSchema.parse({
         id: requestId,
         status: WebhookStatusSchema.enum.error,
         request: body || null,
-        error: { message: err.message },
+        error: { message: error.message },
         timestamp: new Date().toISOString(),
       });
       try {
         const responseId = uuidv4();
         const errorBodyText = JSON.stringify(errorPayload.error);
-        const errorBodyForLog = sanitizeForLogging(errorBodyText);
+        const encryptedErrorBody = encryptionService.encrypt(errorBodyText);
         db.insertResponse.run(
           responseId,
           requestId,
           externalId,
           WebhookStatusSchema.enum.error,
           500,
-          errorBodyForLog,
+          encryptedErrorBody,
         );
-      } catch (e) {
-        fastify.log.error({ e }, 'Failed to insert upstream error response');
+      } catch (error) {
+        fastify.log.error({ error }, 'Failed to insert upstream error response');
       }
       await callWebhook(fastify, errorPayload, WebhookEventTypeSchema.enum.error);
     }
 
     reply.code(500).send({
       error: 'LM Studio proxy error',
-      message: err.message,
+      message: error.message,
     });
   }
 });
@@ -299,7 +362,7 @@ fastify
   .then((address) => {
     fastify.log.info(`Fastify LM Studio proxy listening at ${address}`);
   })
-  .catch((err) => {
-    fastify.log.error(err);
+  .catch((error) => {
+    fastify.log.error(error);
     process.exit(1);
   });

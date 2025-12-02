@@ -114,17 +114,17 @@ fi
 echo "   - Health check: http://localhost:$NGINX_PORT/health"
 echo ""
 echo "Authentication:"
-echo "   - Username: $AUTH_USERNAME"
-echo "   - Password: $AUTH_PASSWORD"
+echo "   - Username: ${NGINX_BASIC_AUTH_USERNAME:-admin}"
+echo "   - Password: $NGINX_BASIC_AUTH_PASSWORD"
 echo ""
 echo "Test the API:"
 if [ "$VLLM_BRIDGE_ENABLED" = "true" ]; then
     echo "   # LM Studio direct:"
-    echo "   curl -u $AUTH_USERNAME:$AUTH_PASSWORD http://localhost:$NGINX_PORT/api/tags"
+    echo "   curl -u ${NGINX_BASIC_AUTH_USERNAME:-admin}:$NGINX_BASIC_AUTH_PASSWORD http://localhost:$NGINX_PORT/api/tags"
     echo "   # VLLM compatible:"
     echo "   curl -X POST http://localhost:$VLLM_BRIDGE_PORT/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"$LMSTUDIO_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}'"
 else
-    echo "   curl -u $AUTH_USERNAME:$AUTH_PASSWORD http://localhost:$NGINX_PORT/api/tags"
+    echo "   curl -u ${NGINX_BASIC_AUTH_USERNAME:-admin}:$NGINX_BASIC_AUTH_PASSWORD http://localhost:$NGINX_PORT/api/tags"
 fi
 echo ""
 echo "Monitor logs:"

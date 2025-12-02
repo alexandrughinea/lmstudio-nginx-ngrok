@@ -14,24 +14,65 @@ fi
 echo "Creating directories..."
 mkdir -p nginx/conf.d logs certs
 
-echo "Setting up authentication..."
-if command -v htpasswd >/dev/null 2>&1; then
-    htpasswd -bc nginx/.htpasswd "$AUTH_USERNAME" "$AUTH_PASSWORD"
-    echo "Authentication file created with username: $AUTH_USERNAME"
-else
-    echo "htpasswd not found. Installing apache2-utils..."
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        if command -v brew >/dev/null 2>&1; then
-            brew install httpd
-        else
-            echo "Please install Homebrew first: https://brew.sh/"
-            exit 1
-        fi
+# Generate strong secrets if not provided
+SECRETS_GENERATED=false
+
+if [ -z "$NGINX_BASIC_AUTH_PASSWORD" ] || [ "$NGINX_BASIC_AUTH_PASSWORD" = "secure_password_123" ]; then
+    echo "No NGINX_BASIC_AUTH_PASSWORD set or using default. Generating password..."
+    NGINX_BASIC_AUTH_PASSWORD=$(openssl rand -base64 32)
+
+    if grep -q "^NGINX_BASIC_AUTH_PASSWORD=" .env; then
+        sed -i.bak "s|^NGINX_BASIC_AUTH_PASSWORD=.*|NGINX_BASIC_AUTH_PASSWORD=${NGINX_BASIC_AUTH_PASSWORD}|" .env
     else
-        sudo apt-get update && sudo apt-get install -y apache2-utils
+        echo "NGINX_BASIC_AUTH_PASSWORD=${NGINX_BASIC_AUTH_PASSWORD}" >> .env
     fi
-    htpasswd -bc nginx/.htpasswd "$AUTH_USERNAME" "$AUTH_PASSWORD"
-    echo "Authentication file created with username: $AUTH_USERNAME"
+
+    echo "Generated NGINX_BASIC_AUTH_PASSWORD"
+    SECRETS_GENERATED=true
+fi
+
+if [ -z "$LMSTUDIO_SQLITE_ENCRYPTION_KEY" ]; then
+    echo "No `LMSTUDIO_SQLITE_ENCRYPTION_KEY` set. Generating encryption key..."
+    LMSTUDIO_SQLITE_ENCRYPTION_KEY=$(openssl rand -base64 32)
+    
+    if grep -q "^LMSTUDIO_SQLITE_ENCRYPTION_KEY=" .env; then
+        sed -i.bak "s|^LMSTUDIO_SQLITE_ENCRYPTION_KEY=.*|LMSTUDIO_SQLITE_ENCRYPTION_KEY=${LMSTUDIO_SQLITE_ENCRYPTION_KEY}|" .env
+    else
+        echo "LMSTUDIO_SQLITE_ENCRYPTION_KEY=${LMSTUDIO_SQLITE_ENCRYPTION_KEY}" >> .env
+    fi
+    
+    echo "Generated `LMSTUDIO_SQLITE_ENCRYPTION_KEY`"
+    SECRETS_GENERATED=true
+fi
+
+if [ -z "$LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET" ]; then
+    echo "No `LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET` set. Generating signing secret..."
+    LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=$(openssl rand -base64 32)
+    
+    if grep -q "^LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=" .env; then
+        sed -i.bak "s|^LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=.*|LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=${LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET}|" .env
+    else
+        echo "LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=${LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET}" >> .env
+    fi
+    
+    echo "Generated `LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET`"
+    SECRETS_GENERATED=true
+fi
+
+# Clean up backup files
+rm -f .env.bak
+
+if [ "$SECRETS_GENERATED" = true ]; then
+    echo " Secrets saved to .env)"
+fi
+
+echo "Generating nginx configuration from environment..."
+if [ -x scripts/nginx/setup.sh ]; then
+    scripts/nginx/setup.sh
+else
+    echo "scripts/nginx/setup.sh not executable, setting +x and retrying..."
+    chmod +x scripts/nginx/setup.sh
+    scripts/nginx/setup.sh
 fi
 
 if [ "$SSL_ENABLED" = "true" ]; then
@@ -86,7 +127,12 @@ echo "4. Access the ngrok web interface at http://localhost:4040"
 echo ""
 echo "- Configuration:"
 echo "   - LM Studio model: $LMSTUDIO_MODEL"
+echo "   - LM Studio: ${LMSTUDIO_HOST}:${LMSTUDIO_PORT}"
+echo "   - Fastify proxy: port ${PROXY_PORT:-3000}"
+echo "   - Fastify timeout: ${LMSTUDIO_PROXY_REQUEST_TIMEOUT:-900000}ms ($(( ${LMSTUDIO_PROXY_REQUEST_TIMEOUT:-900000} / 1000 ))s)"
+echo "   - Fastify cache: ${LMSTUDIO_PROXY_SQLITE_CACHE:-true}"
 echo "   - Nginx port: $NGINX_PORT"
+echo "   - Nginx timeouts: connect=${NGINX_PROXY_CONNECT_TIMEOUT:-120}s, send/read=${NGINX_PROXY_SEND_TIMEOUT:-900}s"
 echo "   - VLLM Bridge: $VLLM_BRIDGE_ENABLED (port: $VLLM_BRIDGE_PORT)"
-echo "   - Auth username: $AUTH_USERNAME"
+echo "   - Auth username: ${NGINX_BASIC_AUTH_USERNAME:-admin}"
 echo "   - SSL enabled: $SSL_ENABLED"

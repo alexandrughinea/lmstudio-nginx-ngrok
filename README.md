@@ -1,14 +1,32 @@
 # LM Studio Nginx Ngrok Setup
 
-This project provides a secure tunnel, authenticated proxy setup for LM Studio API access through **nginx**, a **Fastify proxy with SQLite logging**, and **ngrok**.
+This project provides a secure tunnel, authenticated proxy setup for LM Studio API access through **nginx**, a **Fastify proxy with an encrypted SQLite cache for requests/responses**, and **ngrok**.
 
 - **LM Studio Integration** - OpenAI-compatible `/v1/*` API proxied through a Fastify service
-- **Request/Response Logging** - All `/v1/*` requests and responses are stored in a local SQLite DB
+- **Request/Response Caching** - All `/v1/*` requests and responses are stored in a local, encrypted SQLite cache
 - **Security** - Basic authentication at nginx, rate limiting, security headers  
 - **Public Access** - Ngrok tunnel for external access
 - **Monitoring** - Health checks, status script, and access logging
 - **Containerized** - nginx, Fastify proxy, and ngrok run in Docker; LM Studio runs locally
 - **Easy Setup** - Automated setup and management scripts / Makefile targets
+
+## Make Commands
+
+From the project root you can use these convenience targets:
+
+| Command        | Description                                           |
+|----------------|-------------------------------------------------------|
+| `make help`    | Show available Make targets and descriptions         |
+| `make setup`   | One-time setup: generate nginx config, auth, SSL, checks |
+| `make start`   | Start all services (LM Studio must already be running) |
+| `make stop`    | Stop all Docker services                             |
+| `make status`  | Show Docker status + LM Studio, nginx, Fastify health |
+| `make logs`    | Tail logs from all services                          |
+| `make test`    | Run API smoke tests via `scripts/test-api.sh`        |
+| `make clean`   | Remove containers, volumes and prune Docker system   |
+| `make restart` | Restart all services (`make stop` + `make start`)    |
+| `make build`   | Build/rebuild Docker images (`docker-compose build`) |
+| `make update`  | `git pull`, rebuild containers, and restart services |
 
 ## Quick Start
 
@@ -24,8 +42,8 @@ This project provides a secure tunnel, authenticated proxy setup for LM Studio A
    ```bash
    export LMSTUDIO_MODEL="your-preferred-model"
    NGROK_AUTHTOKEN=your_token   # Get from https://dashboard.ngrok.com
-   AUTH_USERNAME=admin          # API username
-   AUTH_PASSWORD=secure_pass    # API password
+   NGINX_BASIC_AUTH_USERNAME=admin          # API username
+   NGINX_BASIC_AUTH_PASSWORD=secure_pass    # API password
    ```
 
 3. **Start services:**
@@ -62,13 +80,14 @@ This project provides a secure tunnel, authenticated proxy setup for LM Studio A
 | `LMSTUDIO_MODEL`                       | LM Studio model to use (must be available in LM Studio)                    | `google/gemma-3-12b`   |
 | `LMSTUDIO_HOST`                        | LM Studio server host                                                      | `localhost`             |
 | `LMSTUDIO_PORT`                        | LM Studio server port                                                      | `1234`                  |
-| `LMSTUDIO_SQLITE_HOST_DIR`             | Host directory for Fastify SQLite DB                                       | `./fastify-proxy/data`  |
-| `LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE`    | Optional webhook URL fired after chat completions                          | _empty_                 |
-| `LMSTUDIO_WEBHOOK_ON_CHAT_COMPLETE_HEADERS` | Optional JSON headers sent with the webhook request                   | _empty_                 |
-| `LMSTUDIO_SQLITE_LOGGING`              | Enable/disable SQLite logging (`"false" to disable)                        | `true`                  |
-| `LMSTUDIO_SQLITE_PRIVACY_TRIM`         | When `true`, store only trimmed+hashed request/response bodies in SQLite   | `false`                 |
-| `LMSTUDIO_REQUEST_TIMEOUT`             | Timeout for LM Studio requests in milliseconds (for long inference tasks)  | `600000` (10 minutes)   |
-| `LMSTUDIO_WEBHOOK_TIMEOUT`             | Timeout for webhook calls in milliseconds                                  | `30000` (30 seconds)    |
+| `LMSTUDIO_PROXY_SQLITE_HOST_DIR`       | Host directory for the Fastify SQLite cache DB                             | `./fastify-proxy/data`  |
+| `LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE`    | Optional webhook URL fired after chat completions                    | _empty_                 |
+| `LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS` | Optional JSON headers sent with the webhook request              | _empty_                 |
+| `LMSTUDIO_PROXY_SQLITE_CACHE`          | Enable/disable writing requests/responses to the encrypted SQLite cache (`"false" to disable) | `true`                  |
+| `LMSTUDIO_SQLITE_ENCRYPTION_KEY`       | Secret used to encrypt/decrypt cached request/response bodies in SQLite    | Required                |
+| `LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET` | Secret used to create HMAC signatures for proxy responses (`X-Response-Signature` header) | _empty_               |
+| `LMSTUDIO_PROXY_REQUEST_TIMEOUT`             | Timeout for LM Studio requests in milliseconds (for long inference tasks)  | `600000` (10 minutes)   |
+| `LMSTUDIO_PROXY_WEBHOOK_TIMEOUT`             | Timeout for webhook calls in milliseconds                                  | `30000` (30 seconds)    |
 | `NGINX_PORT`                           | Nginx HTTP port                                                            | `8080`                  |
 | `NGINX_SSL_PORT`                       | Nginx HTTPS port                                                           | `8443`                  |
 | `NGINX_PROXY_CONNECT_TIMEOUT`          | Nginx proxy connect timeout (seconds)                                      | `90`                    |
@@ -76,8 +95,8 @@ This project provides a secure tunnel, authenticated proxy setup for LM Studio A
 | `NGINX_PROXY_READ_TIMEOUT`             | Nginx proxy read timeout (seconds)                                         | `330`                   |
 | `NGROK_AUTHTOKEN`                      | Ngrok auth token                                                           | Required                |
 | `NGROK_REGION`                         | Ngrok region                                                               | `us`                    |
-| `AUTH_USERNAME`                        | API username                                                               | `admin`                 |
-| `AUTH_PASSWORD`                        | API password                                                               | `secure_password_123`   |
+| `NGINX_BASIC_AUTH_USERNAME`                        | API username                                                               | `admin`                 |
+| `NGINX_BASIC_AUTH_PASSWORD`                        | API password                                                               | `secure_password_123`   |
 | `RATE_LIMIT`                           | Rate limit                                                                 | `10r/s`                 |
 | `RATE_BURST`                           | Rate limit burst                                                           | `20`                    |
 | `VLLM_BRIDGE_ENABLED`                  | Enable optional VLLM bridge profile in `docker-compose`                    | `true`                  |
@@ -88,14 +107,29 @@ This project provides a secure tunnel, authenticated proxy setup for LM Studio A
 | `SSL_CERT_PATH`                        | Path to SSL certificate inside the container                               | `./certs/server.crt`    |
 | `SSL_KEY_PATH`                         | Path to SSL private key inside the container                               | `./certs/server.key`    |
 
+### Generating strong secrets (encryption + HMAC)
 
+Use `openssl` locally to generate secrets for `LMSTUDIO_SQLITE_ENCRYPTION_KEY` and
+`LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET`:
+
+| Purpose                | Command                             | Example output (paste into [.env](cci:7://file:///Volumes/Work/Projects/lmstudio-nginx-ngrok/.env:0:0-0:0))                                        |
+|------------------------|--------------------------------------|----------------------------------------------------------------------------|
+| 32‑byte base64 secret  | `openssl rand -base64 32`           | `k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM=`                             |
+| 32‑byte hex secret     | `openssl rand -hex 32`              | `9f2c4b7a6e1d3f508a9c2d4e7b1f6a3c5d8e0f1a2b3c4d5e6f708192a3b4c5d`         |
+
+Then in [.env](cci:7://file:///Volumes/Work/Projects/lmstudio-nginx-ngrok/.env:0:0-0:0):
+
+```bash
+LMSTUDIO_SQLITE_ENCRYPTION_KEY="k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM="
+LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET="k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM="
+```
 
 ## Architecture
 
 ```
 Internet → Ngrok → Docker Network → Nginx → Fastify Proxy → Local LM Studio
                                              ↓
-                                       SQLite Logging
+                                       Encrypted SQLite Cache
                                        Authentication
                                        Rate Limiting
                                        Security Headers
