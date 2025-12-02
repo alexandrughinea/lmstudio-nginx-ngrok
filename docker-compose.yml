@@ -2,27 +2,39 @@ services:
   nginx:
     image: nginx:alpine
     container_name: lmstudio-nginx
-    entrypoint: >
-      sh -c "
-      apk add --no-cache apache2-utils &&
-      htpasswd -cb /etc/nginx/.htpasswd ${AUTH_USERNAME:-admin} ${AUTH_PASSWORD:-secure_password_123} &&
-      nginx -g 'daemon off;'"
     ports:
       - "${NGINX_PORT:-8080}:80"
       - "${NGINX_SSL_PORT:-8443}:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
       - ./certs:/etc/nginx/certs:ro
       - ./logs:/var/log/nginx
-    environment:
-      - NGINX_PROXY_CONNECT_TIMEOUT=${NGINX_PROXY_CONNECT_TIMEOUT:-90}
-      - NGINX_PROXY_SEND_TIMEOUT=${NGINX_PROXY_SEND_TIMEOUT:-330}
-      - NGINX_PROXY_READ_TIMEOUT=${NGINX_PROXY_READ_TIMEOUT:-330}
-      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
-      - AUTH_PASSWORD=${AUTH_PASSWORD:-secure_password_123}
     depends_on:
       - ngrok
+    networks:
+      - lmstudio-network
+    restart: unless-stopped
+
+  fastify-proxy:
+    build: ./fastify-proxy
+    container_name: lmstudio-fastify-proxy
+    environment:
+      - PROXY_PORT=3000
+      - LMSTUDIO_HOST=host.docker.internal    # always host machine, from container
+      - LMSTUDIO_PORT=${LMSTUDIO_PORT:-1234}
+      - LMSTUDIO_PROXY_SQLITE_PATH=/data/lmstudio-proxy.db
+      - LMSTUDIO_SQLITE_ENCRYPTION_KEY=${LMSTUDIO_SQLITE_ENCRYPTION_KEY}
+      - LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=${LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET}
+      - LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE=${LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE:-}
+      - LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS=${LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS:-}
+      - LMSTUDIO_PROXY_REQUEST_TIMEOUT=${LMSTUDIO_PROXY_REQUEST_TIMEOUT:-600000}
+      - LMSTUDIO_PROXY_WEBHOOK_TIMEOUT=${LMSTUDIO_PROXY_WEBHOOK_TIMEOUT:-30000}
+    volumes:
+      # Host directory where the SQLite DB is stored; override with LMSTUDIO_PROXY_SQLITE_HOST_DIR in .env if desired.
+      # Example in .env (host): LMSTUDIO_PROXY_SQLITE_HOST_DIR=./fastify-proxy/data
+      - ${LMSTUDIO_PROXY_SQLITE_HOST_DIR:-./fastify-proxy/data}:/data
     networks:
       - lmstudio-network
     restart: unless-stopped
@@ -32,14 +44,12 @@ services:
     container_name: lmstudio-ngrok
     command: 
       - "http"
-      - "nginx:80"
+      - "https://nginx:443"
       - "--authtoken=${NGROK_AUTHTOKEN}"
-      - "--region=${NGROK_REGION:-us}"
+      - "--region=${NGROK_REGION:-eu}"
       - "--log=stdout"
     ports:
       - "4040:4040"  # ngrok web interface
-    environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
     networks:
       - lmstudio-network
     restart: unless-stopped
@@ -47,3 +57,6 @@ services:
 networks:
   lmstudio-network:
     driver: bridge
+
+volumes:
+  fastify-proxy-data:

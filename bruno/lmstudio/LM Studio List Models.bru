@@ -7,12 +7,7 @@ meta {
 get {
   url: {{base_url}}/v1/models
   body: none
-  auth: basic
-}
-
-auth:basic {
-  username: {{auth_username}}
-  password: {{auth_password}}
+  auth: inherit
 }
 
 headers {

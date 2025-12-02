@@ -54,3 +54,15 @@ if [ -n "${NGINX_PORT}" ]; then
 else
     echo "NGINX_PORT not configured"
 fi
+
+echo ""
+echo "⦿ Fastify Proxy Status:"
+if docker ps --format '{{.Names}}' | grep -q '^lmstudio-fastify-proxy$'; then
+    if docker exec lmstudio-fastify-proxy curl -s http://localhost:3000/health >/dev/null 2>&1; then
+        echo "Fastify proxy health check: OK"
+    else
+        echo "Fastify proxy health check: FAILED"
+    fi
+else
+    echo "Fastify proxy container not running"
+fi

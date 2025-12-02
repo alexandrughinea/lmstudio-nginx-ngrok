@@ -10,7 +10,7 @@ else
 fi
 
 BASE_URL="http://localhost:$NGINX_PORT"
-AUTH="$AUTH_USERNAME:$AUTH_PASSWORD"
+AUTH="$NGINX_BASIC_AUTH_USERNAME:$NGINX_BASIC_AUTH_PASSWORD"
 
 echo "Testing LM Studio API through nginx proxy..."
 echo ""
