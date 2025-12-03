@@ -17,7 +17,7 @@ if command -v lms >/dev/null 2>&1; then
         echo "$LMS_STATUS"
         MODEL_COUNT=$(curl -s http://localhost:${LMSTUDIO_PORT:-1234}/v1/models 2>/dev/null | jq -r '.data | length' 2>/dev/null || echo "")
         if [ -n "$MODEL_COUNT" ] && [ "$MODEL_COUNT" -gt 0 ]; then
-            echo "Models loaded: $MODEL_COUNT"
+            echo "Available models: $MODEL_COUNT"
         fi
     else
         echo "LM Studio CLI available but server not running"
@@ -27,7 +27,7 @@ else
         echo "LM Studio server running on port ${LMSTUDIO_PORT:-1234}"
         MODEL_COUNT=$(curl -s http://localhost:${LMSTUDIO_PORT:-1234}/v1/models 2>/dev/null | jq -r '.data | length' 2>/dev/null || echo "")
         if [ -n "$MODEL_COUNT" ] && [ "$MODEL_COUNT" -gt 0 ]; then
-            echo "Models loaded: $MODEL_COUNT"
+            echo "Available models: $MODEL_COUNT"
         fi
     else
         echo "LM Studio server not accessible on port ${LMSTUDIO_PORT:-1234}"

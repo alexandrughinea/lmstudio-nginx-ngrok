@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 import {
+  HeadersSchema,
   WebhookErrorPayloadSchema,
   WebhookEventTypeSchema,
   WebhookStatusSchema,
@@ -13,6 +14,8 @@ import {
 import {
   CREATE_REQUESTS_TABLE,
   CREATE_RESPONSES_TABLE,
+  DROP_REQUESTS_TABLE,
+  DROP_RESPONSES_TABLE,
   ENCODING,
   INSERT_REQUEST_QUERY,
   INSERT_RESPONSE_QUERY,
@@ -25,7 +28,7 @@ import {
   PROXY_PORT,
   SELECT_LATEST_SUCCESS_RESPONSE_BY_EXTERNAL_ID,
 } from './server.const.js';
-import { callWebhook } from './server.utils.js';
+import { callWebhook, verifyRequestSignature } from './server.utils.js';
 import { EncryptionService } from './services/encryption.service.js';
 import { SigningService } from './services/signing.service.js';
 
@@ -37,6 +40,8 @@ const db = (function dbInitialization() {
   const db = new Database(LMSTUDIO_PROXY_SQLITE_PATH);
 
   db.exec(`
+        ${DROP_RESPONSES_TABLE}
+        ${DROP_REQUESTS_TABLE}
         ${CREATE_REQUESTS_TABLE}
         ${CREATE_RESPONSES_TABLE}
     `);
@@ -60,11 +65,19 @@ fastify.all('/v1/*', async (request, reply) => {
   const targetUrl = `http://${LMSTUDIO_HOST}:${LMSTUDIO_PORT}${request.raw.url}`;
   const isChatCompletion =
     request.method === 'POST' && request.raw.url.startsWith('/v1/chat/completions');
-
   let body;
 
   if (request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH') {
     body = request.body;
+  }
+
+  const hasCorrectRequestSignature = await verifyRequestSignature(body, request.headers);
+
+  if (!hasCorrectRequestSignature) {
+    const message = 'Invalid or missing signature header in request.';
+    fastify.log.warn(message);
+    reply.code(401).send({ error: 'invalid_signature', message });
+    return;
   }
 
   const requestId = uuidv4();
@@ -116,8 +129,7 @@ fastify.all('/v1/*', async (request, reply) => {
       fastify.log.error({ error }, 'Failed to insert request in DB');
     }
   }
-
-  const isStream = body && body.stream === true;
+  const isStream = body?.stream === true;
 
   try {
     const upstreamHeaders = {
@@ -151,7 +163,7 @@ fastify.all('/v1/*', async (request, reply) => {
         const responseTextForSignature = bodyBuffer.toString();
         const signature = await signingService.createHmac(responseTextForSignature);
         if (signature) {
-          reply.header('x-response-signature', signature);
+          reply.header(HeadersSchema.enum['x-response-signature'], signature);
         }
       } catch {}
 
@@ -197,7 +209,7 @@ fastify.all('/v1/*', async (request, reply) => {
       try {
         const signature = await signingService.createHmac(text);
         if (signature) {
-          reply.header('x-response-signature', signature);
+          reply.header(HeadersSchema.enum['x-response-signature'], signature);
         }
       } catch {}
 

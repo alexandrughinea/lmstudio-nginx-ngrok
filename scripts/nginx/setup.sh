@@ -120,9 +120,11 @@ server {
         proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
     }
 
-    # Health check (no authentication, no rate limiting)
+    # Health check
     location /health {
         auth_basic off;
+        # Rate limiting (zone defined in nginx.conf)
+        limit_req zone=api_limit burst=${NGINX_PROXY_RATE_BURST} nodelay;
         proxy_pass http://fastify-proxy:3000;
         proxy_set_header Host \$host;
     }
@@ -196,9 +198,11 @@ EOF
         proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
     }
 
-    # Health check (no authentication, no rate limiting)
+    # Health check
     location /health {
         auth_basic off;
+        # Rate limiting
+        limit_req zone=api_limit burst=${NGINX_PROXY_RATE_BURST} nodelay;
         proxy_pass http://fastify-proxy:3000;
         proxy_set_header Host \$host;
     }

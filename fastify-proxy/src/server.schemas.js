@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const HeadersSchema = z.enum(['x-response-signature']);
+
 export const WebhookStatusSchema = z.enum(['success', 'error']);
 export const WebhookEventTypeSchema = z.enum(['success', 'error']);
 const WebhookBasePayloadSchema = z.object({
