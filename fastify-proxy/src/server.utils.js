@@ -1,10 +1,14 @@
 import { request as undiciRequest } from 'undici';
 import {
-  ENCODING,
   LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE,
   LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS,
   LMSTUDIO_PROXY_WEBHOOK_TIMEOUT,
+  LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET,
 } from './server.const.js';
+import { SigningService } from './services/signing.service.js';
+import { HeadersSchema } from './server.schemas.js';
+
+const signingService = new SigningService();
 
 function parseWebhookHeaders(envHeaders) {
   if (!envHeaders) {
@@ -18,8 +22,20 @@ function parseWebhookHeaders(envHeaders) {
   }
 }
 
-export function sanitizeForLogging(text) {
-  return text;
+export async function verifyRequestSignature(body, headers) {
+  if (!LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET) {
+    return true;
+  }
+
+  const signatureHeader = headers[HeadersSchema.enum['x-response-signature']];
+  const signature = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
+  const payloadForSigning = JSON.stringify(body || {});
+
+  return signingService.verifyHmac(
+    payloadForSigning,
+    signature,
+    LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET,
+  );
 }
 
 export async function callWebhook(fastify, webhookPayload, webhookEventType) {

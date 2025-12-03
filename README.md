@@ -86,6 +86,7 @@ From the project root you can use these convenience targets:
 | `LMSTUDIO_PROXY_SQLITE_CACHE`          | Enable/disable writing requests/responses to the encrypted SQLite cache (`"false" to disable) | `true`                  |
 | `LMSTUDIO_SQLITE_ENCRYPTION_KEY`       | Secret used to encrypt/decrypt cached request/response bodies in SQLite    | Required                |
 | `LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET` | Secret used to create HMAC signatures for proxy responses (`X-Response-Signature` header) | _empty_               |
+| `LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET`           | Optional secret to verify inbound ngrok requests via HMAC (`x-response-signature` header) | _empty_               |
 | `LMSTUDIO_PROXY_REQUEST_TIMEOUT`             | Timeout for LM Studio requests in milliseconds (for long inference tasks)  | `600000` (10 minutes)   |
 | `LMSTUDIO_PROXY_WEBHOOK_TIMEOUT`             | Timeout for webhook calls in milliseconds                                  | `30000` (30 seconds)    |
 | `NGINX_PORT`                           | Nginx HTTP port                                                            | `8080`                  |
@@ -123,6 +124,19 @@ Then in [.env](cci:7://file:///Volumes/Work/Projects/lmstudio-nginx-ngrok/.env:0
 LMSTUDIO_SQLITE_ENCRYPTION_KEY="k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM="
 LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET="k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM="
 ```
+
+If you want to **lock down inbound traffic coming through ngrok to only trusted callers** also set:
+
+```bash
+LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET="k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM="
+```
+
+When `LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET` is set, the Fastify proxy will **verify an HMAC over the JSON request body** for all `/v1/*` requests. Callers must send:
+
+- Header: `x-response-signature`
+- Value: `hex(HMAC_SHA256(LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET, JSON.stringify(body)))`
+
+If the header is missing or invalid, the proxy responds with `401 { "error": "invalid_signature" }` and does not forward the request to LM Studio.
 
 ## Architecture
 

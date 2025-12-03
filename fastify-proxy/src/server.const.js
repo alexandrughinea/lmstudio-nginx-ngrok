@@ -6,7 +6,8 @@ export const LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE =
   process.env.LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE || '';
 export const LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS =
   process.env.LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS || '';
-export const LMSTUDIO_PROXY_SQLITE_PATH = process.env.LMSTUDIO_PROXY_SQLITE_PATH || '/data/lmstudio-proxy.db';
+export const LMSTUDIO_PROXY_SQLITE_PATH =
+  process.env.LMSTUDIO_PROXY_SQLITE_PATH || '/data/lmstudio-proxy.db';
 export const LMSTUDIO_PROXY_SQLITE_CACHE = process.env.LMSTUDIO_PROXY_SQLITE_CACHE !== 'false';
 export const LMSTUDIO_PROXY_REQUEST_TIMEOUT = parseInt(
   process.env.LMSTUDIO_PROXY_REQUEST_TIMEOUT || '900000',
@@ -19,6 +20,8 @@ export const LMSTUDIO_PROXY_WEBHOOK_TIMEOUT = parseInt(
 export const LMSTUDIO_SQLITE_ENCRYPTION_KEY = process.env.LMSTUDIO_SQLITE_ENCRYPTION_KEY || '';
 export const LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET =
   process.env.LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET || '';
+export const LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET =
+  process.env.LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET || '';
 
 export const CREATE_REQUESTS_TABLE = `
     CREATE TABLE IF NOT EXISTS requests
@@ -78,6 +81,13 @@ export const CREATE_RESPONSES_TABLE = `
         id
     )
         );
+`;
+
+export const DROP_REQUESTS_TABLE = `
+    DROP TABLE IF EXISTS requests;
+`;
+export const DROP_RESPONSES_TABLE = `
+    DROP TABLE IF EXISTS responses;
 `;
 
 export const SELECT_LATEST_SUCCESS_RESPONSE_BY_EXTERNAL_ID = `
