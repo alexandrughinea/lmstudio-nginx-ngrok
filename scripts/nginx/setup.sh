@@ -155,7 +155,8 @@ if [ "$SSL_ENABLED" = "true" ]; then
     cat >> "$OUT_FILE" <<'EOF'
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
+    http2 on;
     server_name _;
 
     # SSL configuration
