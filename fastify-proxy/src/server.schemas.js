@@ -4,6 +4,7 @@ export const HeadersSchema = z.enum(['x-response-signature']);
 
 export const WebhookStatusSchema = z.enum(['success', 'error']);
 export const WebhookEventTypeSchema = z.enum(['success', 'error']);
+export const HealthStatusSchema = z.enum(['OK', 'DEGRADED', 'UNHEALTHY', 'UNREACHABLE']);
 const WebhookBasePayloadSchema = z.object({
   id: z.string().optional(),
   status: WebhookStatusSchema,

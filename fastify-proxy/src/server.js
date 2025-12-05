@@ -28,6 +28,7 @@ import {
   PROXY_PORT,
   SELECT_LATEST_SUCCESS_RESPONSE_BY_EXTERNAL_ID,
 } from './server.const.js';
+import { HealthStatusSchema } from './server.schemas.js';
 import { callWebhook, verifyRequestSignature } from './server.utils.js';
 import { EncryptionService } from './services/encryption.service.js';
 import { SigningService } from './services/signing.service.js';
@@ -367,7 +368,42 @@ fastify.all('/v1/*', async (request, reply) => {
   }
 });
 
-fastify.get('/health', async () => ({ status: 'OK', date: new Date().toISOString() }));
+fastify.get('/health', async (request, reply) => {
+  const now = new Date().toISOString();
+
+  try {
+    const lmstudioUrl = `http://${LMSTUDIO_HOST}:${LMSTUDIO_PORT}/v1/models`;
+    const upstream = await undiciRequest(lmstudioUrl, {
+      method: 'GET',
+      headersTimeout: 5000,
+      bodyTimeout: 5000,
+      reset: true,
+    });
+
+    const isHealthy = upstream.statusCode >= 200 && upstream.statusCode < 300;
+
+    if (!isHealthy) {
+      return reply.code(503).send({
+        status: HealthStatusSchema.enum.DEGRADED,
+        date: now,
+        httpStatus: upstream.statusCode,
+      });
+    }
+
+    reply.send({
+      status: HealthStatusSchema.enum.OK,
+      date: now,
+    });
+  } catch (error) {
+    fastify.log.error({ error }, 'LM Studio health check failed');
+
+    reply.code(503).send({
+      status: HealthStatusSchema.enum.UNHEALTHY,
+      date: now,
+      error: error.message,
+    });
+  }
+});
 
 fastify
   .listen({ port: Number(PROXY_PORT), host: '0.0.0.0' })
