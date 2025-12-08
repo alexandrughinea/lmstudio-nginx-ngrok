@@ -89,69 +89,17 @@ EOF
 # Generate default.conf
 OUT_FILE="nginx/conf.d/default.conf"
 
-cat > "$OUT_FILE" <<EOF
+if [ "$SSL_ENABLED" = "true" ]; then
+    cat > "$OUT_FILE" <<'EOF'
 server {
     listen 80;
     server_name _;
 
-    # Basic settings
-    client_max_body_size ${NGINX_CLIENT_MAX_BODY_SIZE};
-
-    # Global authentication
-    auth_basic "LM Studio API Access";
-    auth_basic_user_file /etc/nginx/.htpasswd;
-
-    # LM Studio OpenAI-compatible endpoints via Fastify proxy (for caching & webhooks)
-    location /v1/ {
-        # Rate limiting (zone defined in nginx.conf)
-        limit_req zone=api_limit burst=${NGINX_PROXY_RATE_BURST} nodelay;
-
-        proxy_pass http://fastify-proxy:3000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_connect_timeout ${NGINX_PROXY_CONNECT_TIMEOUT}s;
-        proxy_send_timeout ${NGINX_PROXY_SEND_TIMEOUT}s;
-        proxy_read_timeout ${NGINX_PROXY_READ_TIMEOUT}s;
-        proxy_buffering off;
-        proxy_request_buffering off;
-        proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
-    }
-
-    # Health check
-    location /health {
-        auth_basic off;
-        # Rate limiting (zone defined in nginx.conf)
-        limit_req zone=api_limit burst=${NGINX_PROXY_RATE_BURST} nodelay;
-        proxy_pass http://fastify-proxy:3000;
-        proxy_set_header Host \$host;
-    }
-
-    # All other endpoints go directly to Fastify proxy
-    location / {
-        # Rate limiting (zone defined in nginx.conf)
-        limit_req zone=api_limit burst=${NGINX_PROXY_RATE_BURST} nodelay;
-
-        proxy_pass http://fastify-proxy:3000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_connect_timeout ${NGINX_PROXY_CONNECT_TIMEOUT}s;
-        proxy_send_timeout ${NGINX_PROXY_SEND_TIMEOUT}s;
-        proxy_read_timeout ${NGINX_PROXY_READ_TIMEOUT}s;
-        proxy_buffering off;
-        proxy_request_buffering off;
-        proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
-    }
+    # Prefer HTTPS-only exposure, redirect all HTTP requests to HTTPS
+    return 301 https://$host$request_uri;
 }
 EOF
 
-# Generate SSL server block if enabled
-if [ "$SSL_ENABLED" = "true" ]; then
     cat >> "$OUT_FILE" <<'EOF'
 
 server {

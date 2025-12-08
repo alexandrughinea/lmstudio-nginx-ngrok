@@ -3,7 +3,6 @@ services:
     image: nginx:alpine
     container_name: lmstudio-nginx
     ports:
-      - "${NGINX_PORT:-8080}:80"
       - "${NGINX_SSL_PORT:-8443}:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
