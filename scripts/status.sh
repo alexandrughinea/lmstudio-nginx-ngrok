@@ -45,14 +45,14 @@ fi
 echo ""
 
 echo "⦿ Health Check:"
-if [ -n "${NGINX_PORT}" ]; then
-    if curl -s http://localhost:${NGINX_PORT}/health >/dev/null 2>&1; then
+if [ -n "${NGINX_SSL_PORT}" ]; then
+    if curl -sk https://localhost:${NGINX_SSL_PORT}/health >/dev/null 2>&1; then
         echo "Nginx proxy health check: OK"
     else
         echo "Nginx proxy health check: FAILED"
     fi
 else
-    echo "NGINX_PORT not configured"
+    echo "NGINX_SSL_PORT not configured"
 fi
 
 echo ""
