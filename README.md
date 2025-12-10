@@ -96,6 +96,7 @@ From the project root you can use these convenience targets:
 | `NGINX_PROXY_READ_TIMEOUT`             | Nginx proxy read timeout (seconds)                                         | `330`                   |
 | `NGROK_AUTHTOKEN`                      | Ngrok auth token                                                           | Required                |
 | `NGROK_REGION`                         | Ngrok region                                                               | `us`                    |
+| `NGROK_DOMAIN`                         | Optional fixed ngrok domain (e.g. `your-name.ngrok-free.app`) bound to the ngrok tunnel | _empty_      |
 | `NGINX_BASIC_AUTH_USERNAME`                        | API username                                                               | `admin`                 |
 | `NGINX_BASIC_AUTH_PASSWORD`                        | API password                                                               | `secure_password_123`   |
 | `RATE_LIMIT`                           | Rate limit                                                                 | `10r/s`                 |

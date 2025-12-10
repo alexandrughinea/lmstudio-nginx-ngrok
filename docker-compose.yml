@@ -47,6 +47,7 @@ services:
       - "https://nginx:443"
       - "--authtoken=${NGROK_AUTHTOKEN}"
       - "--region=${NGROK_REGION:-eu}"
+      - "--domain=${NGROK_DOMAIN}"
       - "--log=stdout"
     ports:
       - "4040:4040"  # ngrok web interface
