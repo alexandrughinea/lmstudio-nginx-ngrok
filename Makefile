@@ -39,7 +39,7 @@ logs: ## View service logs
 
 test: ## Test the API endpoints
 	@echo "⦿ Testing API..."
-	@./scripts/test-api.sh
+	@./scripts/test/test.sh
 
 clean: ## Clean up containers and volumes
 	@echo "⦿ Cleaning up..."

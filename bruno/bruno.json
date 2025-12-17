@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "name": "LMStudio Nginx Ngrok API",
+  "name": "lmstudio-nginx-ngrok",
   "type": "collection",
   "ignore": [
     "node_modules",

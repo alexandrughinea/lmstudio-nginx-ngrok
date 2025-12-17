@@ -27,7 +27,7 @@ export async function verifyRequestSignature(body, headers) {
     return true;
   }
 
-  const signatureHeader = headers[HeadersSchema.enum['x-response-signature']];
+  const signatureHeader = headers[HeadersSchema.enum['x-request-signature']];
   const signature = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
   const payloadForSigning = JSON.stringify(body || {});
 
