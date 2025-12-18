@@ -35,7 +35,7 @@ status: ## Check service status
 
 logs: ## View service logs
 	@echo "⦿ Viewing logs..."
-	@docker-compose logs -f
+	@docker-compose logs -f --timestamps
 
 test: ## Test the API endpoints
 	@echo "⦿ Testing API..."
