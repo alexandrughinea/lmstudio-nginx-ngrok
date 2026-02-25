@@ -4,7 +4,8 @@ set -e
 echo "==> Generating nginx .htpasswd..."
 : "${NGINX_BASIC_AUTH_USERNAME:=admin}"
 : "${NGINX_BASIC_AUTH_PASSWORD:=$(openssl rand -base64 24)}"
-htpasswd -bc /etc/nginx/.htpasswd "$NGINX_BASIC_AUTH_USERNAME" "$NGINX_BASIC_AUTH_PASSWORD"
+# Use bcrypt (-B) and read password from stdin (-i) to avoid exposing it in ps aux
+printf '%s' "$NGINX_BASIC_AUTH_PASSWORD" | htpasswd -B -c -i /etc/nginx/.htpasswd "$NGINX_BASIC_AUTH_USERNAME"
 echo "    user: $NGINX_BASIC_AUTH_USERNAME"
 
 echo "==> Generating missing secrets..."

@@ -111,10 +111,12 @@ server {
     ssl_certificate /etc/nginx/certs/server.crt;
     ssl_certificate_key /etc/nginx/certs/server.key;
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:!aNULL:!MD5;
+    ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
+    ssl_session_tickets off;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
     # Basic settings
 EOF
@@ -181,9 +183,15 @@ fi
 
 # Regenerate basic auth file (nginx/.htpasswd)
 echo "Setting up nginx basic authentication..."
-if command -v htpasswd >/dev/null 2>&1; then
-  htpasswd -bc nginx/.htpasswd "${NGINX_BASIC_AUTH_USERNAME:-admin}" "$NGINX_BASIC_AUTH_PASSWORD" >/dev/null 2>&1 || true
+_htpasswd_create() {
+  # Use bcrypt (-B) and read password from stdin (-i) to avoid exposing it in ps aux
+  printf '%s' "$NGINX_BASIC_AUTH_PASSWORD" | \
+    htpasswd -B -c -i nginx/.htpasswd "${NGINX_BASIC_AUTH_USERNAME:-admin}" >/dev/null 2>&1
   echo "  - nginx/.htpasswd created for user: ${NGINX_BASIC_AUTH_USERNAME:-admin}"
+}
+
+if command -v htpasswd >/dev/null 2>&1; then
+  _htpasswd_create
 else
   echo "htpasswd not found. Installing apache2-utils for nginx auth..."
   if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -196,8 +204,7 @@ else
   else
     sudo apt-get update && sudo apt-get install -y apache2-utils
   fi
-  htpasswd -bc nginx/.htpasswd "${NGINX_BASIC_AUTH_USERNAME:-admin}" "$NGINX_BASIC_AUTH_PASSWORD" >/dev/null 2>&1 || true
-  echo "  - nginx/.htpasswd created for user: ${NGINX_BASIC_AUTH_USERNAME:-admin}"
+  _htpasswd_create
 fi
 
 echo "Generated nginx configuration files:"
