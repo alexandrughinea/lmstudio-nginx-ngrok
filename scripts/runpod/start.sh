@@ -28,7 +28,11 @@ mkdir -p "$(dirname "$SQLITE_DIR")"
 # ── Write all VLLM_ / PROXY_ env vars to a file so start-fastify.sh can
 # source them cleanly, avoiding supervisord quoting issues with special chars.
 echo "==> Writing env snapshot for fastify..."
-printenv | grep -E '^(VLLM_|PROXY_PORT)' > /tmp/app.env || true
+printenv | grep -E '^(VLLM_|PROXY_PORT)' | while IFS= read -r line; do
+  key="${line%%=*}"
+  val="${line#*=}"
+  printf '%s=%q\n' "$key" "$val"
+done > /tmp/app.env || true
 
 echo "==> Starting services via supervisord..."
 exec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/app.conf
