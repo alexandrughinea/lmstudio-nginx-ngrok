@@ -12,6 +12,15 @@ echo "==> Generating missing secrets..."
 : "${VLLM_PROXY_RESPONSE_SIGNING_SECRET:=$(openssl rand -base64 32)}"
 : "${VLLM_PROXY_REQUEST_SIGNING_SECRET:=}"
 
+# Defaults for vLLM flags used in supervisord %(ENV_*)s substitutions.
+# If not set by the RunPod template, these values are used.
+: "${VLLM_MODEL:=facebook/opt-125m}"
+: "${VLLM_DEVICE:=auto}"
+: "${VLLM_DTYPE:=auto}"
+: "${VLLM_MAX_MODEL_LEN:=4096}"
+
+export VLLM_MODEL VLLM_DEVICE VLLM_DTYPE VLLM_MAX_MODEL_LEN
+
 echo "==> Ensuring data directory exists..."
 SQLITE_DIR="${VLLM_PROXY_SQLITE_PATH:-/workspace/data/vllm-proxy.db}"
 mkdir -p "$(dirname "$SQLITE_DIR")"

@@ -58,9 +58,7 @@ const db = (function dbInitialization() {
   };
 })();
 
-const fastify = Fastify({
-  logger: VLLM_PROXY_SQLITE_CACHE,
-});
+const fastify = Fastify({ logger: true });
 
 fastify.all('/v1/*', async (request, reply) => {
   const targetUrl = `http://${VLLM_HOST}:${VLLM_PORT}${request.raw.url}`;
@@ -133,8 +131,12 @@ fastify.all('/v1/*', async (request, reply) => {
   const isStream = body?.stream === true;
 
   try {
+    // Strip hop-by-hop / inbound-only headers before forwarding to vLLM.
+    // - authorization: nginx's Basic Auth creds must not reach the backend
+    // - content-length: recalculated by undici from the serialised body
+    const { authorization, 'content-length': _cl, ...forwardHeaders } = request.headers;
     const upstreamHeaders = {
-      ...request.headers,
+      ...forwardHeaders,
       host: `${VLLM_HOST}:${VLLM_PORT}`,
     };
     const upstream = await undiciRequest(targetUrl, {
