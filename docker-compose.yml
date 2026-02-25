@@ -1,7 +1,7 @@
 services:
   nginx:
     image: nginx:alpine
-    container_name: lmstudio-nginx
+    container_name: vllm-nginx
     ports:
       - "${NGINX_SSL_PORT:-8443}:443"
     volumes:
@@ -11,53 +11,37 @@ services:
       - ./certs:/etc/nginx/certs:ro
       - ./logs:/var/log/nginx
     depends_on:
-      - ngrok
+      - fastify-proxy
     networks:
-      - lmstudio-network
+      - vllm-network
     restart: unless-stopped
 
   fastify-proxy:
     build: ./fastify-proxy
-    container_name: lmstudio-fastify-proxy
+    container_name: vllm-fastify-proxy
     environment:
       - PROXY_PORT=3000
-      - LMSTUDIO_HOST=host.docker.internal
-      - LMSTUDIO_PORT=${LMSTUDIO_PORT:-1234}
-      - LMSTUDIO_PROXY_SQLITE_PATH=/data/lmstudio-proxy.db
-      - LMSTUDIO_PROXY_SQLITE_CACHE=${LMSTUDIO_PROXY_SQLITE_CACHE:-true}
-      - LMSTUDIO_SQLITE_ENCRYPTION_KEY=${LMSTUDIO_SQLITE_ENCRYPTION_KEY}
-      - LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=${LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET}
-      - LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET=${LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET}
-      - LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE=${LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE:-}
-      - LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS=${LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS:-}
-      - LMSTUDIO_PROXY_REQUEST_TIMEOUT=${LMSTUDIO_PROXY_REQUEST_TIMEOUT:-900000}
-      - LMSTUDIO_PROXY_WEBHOOK_TIMEOUT=${LMSTUDIO_PROXY_WEBHOOK_TIMEOUT:-30000}
+      - VLLM_HOST=host.docker.internal
+      - VLLM_PORT=${VLLM_PORT:-8000}
+      - VLLM_PROXY_SQLITE_PATH=/data/vllm-proxy.db
+      - VLLM_PROXY_SQLITE_CACHE=${VLLM_PROXY_SQLITE_CACHE:-true}
+      - VLLM_SQLITE_ENCRYPTION_KEY=${VLLM_SQLITE_ENCRYPTION_KEY}
+      - VLLM_PROXY_RESPONSE_SIGNING_SECRET=${VLLM_PROXY_RESPONSE_SIGNING_SECRET}
+      - VLLM_PROXY_REQUEST_SIGNING_SECRET=${VLLM_PROXY_REQUEST_SIGNING_SECRET}
+      - VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE=${VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE:-}
+      - VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS=${VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS:-}
+      - VLLM_PROXY_REQUEST_TIMEOUT=${VLLM_PROXY_REQUEST_TIMEOUT:-900000}
+      - VLLM_PROXY_WEBHOOK_TIMEOUT=${VLLM_PROXY_WEBHOOK_TIMEOUT:-30000}
     volumes:
-      # Host directory where the SQLite DB is stored; override with LMSTUDIO_PROXY_SQLITE_HOST_DIR in .env if desired.
-      # Example in .env (host): LMSTUDIO_PROXY_SQLITE_HOST_DIR=./fastify-proxy/data
-      - ${LMSTUDIO_PROXY_SQLITE_HOST_DIR:-./fastify-proxy/data}:/data
+      # Host directory where the SQLite DB is stored; override with VLLM_PROXY_SQLITE_HOST_DIR in .env if desired.
+      # Example in .env (host): VLLM_PROXY_SQLITE_HOST_DIR=./fastify-proxy/data
+      - ${VLLM_PROXY_SQLITE_HOST_DIR:-./fastify-proxy/data}:/data
     networks:
-      - lmstudio-network
-    restart: unless-stopped
-
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: lmstudio-ngrok
-    command: 
-      - "http"
-      - "https://nginx:443"
-      - "--authtoken=${NGROK_AUTHTOKEN}"
-      - "--region=${NGROK_REGION:-eu}"
-      - "--domain=${NGROK_DOMAIN}"
-      - "--log=stdout"
-    ports:
-      - "4040:4040"  # ngrok web interface
-    networks:
-      - lmstudio-network
+      - vllm-network
     restart: unless-stopped
 
 networks:
-  lmstudio-network:
+  vllm-network:
     driver: bridge
 
 volumes:

@@ -1,143 +1,121 @@
-# LM Studio Nginx Ngrok Setup
+# vLLM · Fastify · Nginx
 
-This project provides a secure tunnel, authenticated proxy setup for LM Studio API access through **nginx**, a **Fastify proxy with an encrypted SQLite cache for requests/responses**, and **ngrok**.
+A secure, authenticated proxy setup for vLLM (OpenAI-compatible API) with **Nginx** and a **Fastify proxy with an encrypted SQLite cache for requests/responses**. Supports both local development (against LM Studio or any OpenAI-compatible backend) and one-image RunPod deployment.
 
-- **LM Studio Integration** - OpenAI-compatible `/v1/*` API proxied through a Fastify service
+- **vLLM / LM Studio Integration** - OpenAI-compatible `/v1/*` API proxied through a Fastify service
 - **Request/Response Caching** - All `/v1/*` requests and responses are stored in a local, encrypted SQLite cache
-- **Security** - Basic authentication at nginx, rate limiting, security headers  
-- **Public Access** - Ngrok tunnel for external access
+- **Security** - Basic authentication at nginx, rate limiting, security headers
 - **Monitoring** - Health checks, status script, and access logging
-- **Containerized** - nginx, Fastify proxy, and ngrok run in Docker; LM Studio runs locally
+- **Containerized** - Nginx and Fastify proxy run in Docker; backend can be local (LM Studio) or in-container (vLLM on RunPod)
 - **Easy Setup** - Automated setup and management scripts / Makefile targets
 
 ## Make Commands
 
-From the project root you can use these convenience targets:
-
-| Command        | Description                                           |
-|----------------|-------------------------------------------------------|
-| `make help`    | Show available Make targets and descriptions         |
-| `make setup`   | One-time setup: generate nginx config, auth, SSL, checks |
-| `make start`   | Start all services (LM Studio must already be running) |
-| `make stop`    | Stop all Docker services                             |
-| `make status`  | Show Docker status + LM Studio, nginx, Fastify health |
-| `make logs`    | Tail logs from all services                          |
-| `make test`    | Run API smoke tests via `scripts/test-api.sh`        |
-| `make clean`   | Remove containers, volumes and prune Docker system   |
-| `make restart` | Restart all services (`make stop` + `make start`)    |
-| `make build`   | Build/rebuild Docker images (`docker-compose build`) |
-| `make update`  | `git pull`, rebuild containers, and restart services |
+| Command              | Description                                                   |
+|----------------------|---------------------------------------------------------------|
+| `make help`          | Show available Make targets and descriptions                  |
+| `make setup`         | One-time setup: generate nginx config, auth, checks           |
+| `make start`         | Start all services                                            |
+| `make stop`          | Stop all Docker services                                      |
+| `make status`        | Show Docker status + backend, nginx, Fastify health           |
+| `make logs`          | Tail logs from all services                                   |
+| `make test`          | Run API smoke tests                                           |
+| `make test-local`    | Run E2E tests against local HTTP stack                        |
+| `make clean`         | Remove containers, volumes and prune Docker system            |
+| `make restart`       | Restart all services (`make stop` + `make start`)             |
+| `make build`         | Build/rebuild Docker images                                   |
+| `make update`        | `git pull`, rebuild containers, and restart services          |
+| `make build-runpod`  | Build the all-in-one RunPod image                             |
+| `make push-runpod`   | Push RunPod image to Docker Hub                               |
+| `make release-runpod`| Build + push RunPod image                                     |
 
 ## Quick Start
 
+### Local development (LM Studio backend)
+
 1. **Clone and setup:**
    ```bash
-   cd lmstudio-nginx-ngrok
+   cd vllm-nginx-proxy
    chmod +x scripts/*.sh
    ./scripts/setup.sh
    ```
 
-2. **Configure LM Studio model** (optional):
-   Edit `.env` file with your settings:
+2. **Configure `.env`:**
    ```bash
-   export LMSTUDIO_MODEL="your-preferred-model"
-   NGROK_AUTHTOKEN=your_token   # Get from https://dashboard.ngrok.com
-   NGINX_BASIC_AUTH_USERNAME=admin          # API username
-   NGINX_BASIC_AUTH_PASSWORD=secure_pass    # API password
+   VLLM_MODEL="your-preferred-model"
+   NGINX_BASIC_AUTH_USERNAME=admin
+   NGINX_BASIC_AUTH_PASSWORD=secure_pass
    ```
 
-3. **Start services:**
+3. **Start services (local overlay):**
    ```bash
-   # using Makefile
-   make start
-
-   # or directly
-   ./scripts/start.sh
+   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
    ```
 
 4. **Test the OpenAI-compatible API:**
    ```bash
-   # List models (proxied through nginx → fastify → LM Studio)
+   # List models
    curl -u admin:secure_pass "http://localhost:8080/v1/models"
 
-   # Simple chat completion
+   # Chat completion
    curl -u admin:secure_pass \
      -H "Content-Type: application/json" \
-     -d '{
-       "model": "your-model",
-       "messages": [{"role": "user", "content": "Hello!"}],
-       "stream": false
-     }' \
+     -d '{"model":"your-model","messages":[{"role":"user","content":"Hello!"}],"stream":false}' \
      "http://localhost:8080/v1/chat/completions"
    ```
 
-## LM Studio Configuration
+### RunPod deployment
 
-### Environment Variables
+See [RunPod deployment](#runpod-deployment) section below.
 
-| Variable                               | Description                                                                 | Default                 |
-|----------------------------------------|-----------------------------------------------------------------------------|-------------------------|
-| `LMSTUDIO_MODEL`                       | LM Studio model to use (must be available in LM Studio)                    | `google/gemma-3-12b`   |
-| `LMSTUDIO_HOST`                        | LM Studio server host                                                      | `localhost`             |
-| `LMSTUDIO_PORT`                        | LM Studio server port                                                      | `1234`                  |
-| `LMSTUDIO_PROXY_SQLITE_HOST_DIR`       | Host directory for the Fastify SQLite cache DB                             | `./fastify-proxy/data`  |
-| `LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE`    | Optional webhook URL fired after chat completions                    | _empty_                 |
-| `LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS` | Optional JSON headers sent with the webhook request              | _empty_                 |
-| `LMSTUDIO_PROXY_SQLITE_CACHE`          | Enable/disable writing requests/responses to the encrypted SQLite cache (`"false" to disable) | `true`                  |
-| `LMSTUDIO_SQLITE_ENCRYPTION_KEY`       | Secret used to encrypt/decrypt cached request/response bodies in SQLite    | Required                |
-| `LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET` | Secret used to create HMAC signatures for proxy responses (`X-Response-Signature` header) | _empty_               |
-| `LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET`           | Optional secret to verify inbound ngrok requests via HMAC (`x-request-signature` header) | _empty_               |
-| `LMSTUDIO_PROXY_REQUEST_TIMEOUT`             | Timeout for LM Studio requests in milliseconds (for long inference tasks)  | `600000` (10 minutes)   |
-| `LMSTUDIO_PROXY_WEBHOOK_TIMEOUT`             | Timeout for webhook calls in milliseconds                                  | `30000` (30 seconds)    |
-| `NGINX_PORT`                           | Nginx HTTP port                                                            | `8080`                  |
-| `NGINX_SSL_PORT`                       | Nginx HTTPS port                                                           | `8443`                  |
-| `NGINX_PROXY_CONNECT_TIMEOUT`          | Nginx proxy connect timeout (seconds)                                      | `90`                    |
-| `NGINX_PROXY_SEND_TIMEOUT`             | Nginx proxy send timeout (seconds)                                         | `330`                   |
-| `NGINX_PROXY_READ_TIMEOUT`             | Nginx proxy read timeout (seconds)                                         | `330`                   |
-| `NGROK_AUTHTOKEN`                      | Ngrok auth token                                                           | Required                |
-| `NGROK_REGION`                         | Ngrok region                                                               | `us`                    |
-| `NGROK_DOMAIN`                         | Optional fixed ngrok domain (e.g. `your-name.ngrok-free.app`) bound to the ngrok tunnel | _empty_      |
-| `NGINX_BASIC_AUTH_USERNAME`                        | API username                                                               | `admin`                 |
-| `NGINX_BASIC_AUTH_PASSWORD`                        | API password                                                               | `secure_password_123`   |
-| `RATE_LIMIT`                           | Rate limit                                                                 | `10r/s`                 |
-| `RATE_BURST`                           | Rate limit burst                                                           | `20`                    |
-| `VLLM_BRIDGE_ENABLED`                  | Enable optional VLLM bridge profile in `docker-compose`                    | `true`                  |
-| `VLLM_BRIDGE_PORT`                     | VLLM bridge service port                                                   | `8000`                  |
-| `VLLM_BRIDGE_CHAT_TIMEOUT`             | VLLM bridge chat completion timeout (seconds)                              | `300`                   |
-| `VLLM_BRIDGE_MODELS_TIMEOUT`           | VLLM bridge models endpoint timeout (seconds)                              | `30`                    |
-| `SSL_ENABLED`                          | Enable SSL termination in nginx                                            | `false`                 |
-| `SSL_CERT_PATH`                        | Path to SSL certificate inside the container                               | `./certs/server.crt`    |
-| `SSL_KEY_PATH`                         | Path to SSL private key inside the container                               | `./certs/server.key`    |
+## Environment Variables
 
-### Generating strong secrets (encryption + HMAC)
+| Variable                                        | Description                                                                              | Default                |
+|-------------------------------------------------|------------------------------------------------------------------------------------------|------------------------|
+| `VLLM_MODEL`                                    | Model identifier                                                                         | `google/gemma-3-12b`   |
+| `VLLM_HOST`                                     | Backend host                                                                             | `localhost`            |
+| `VLLM_PORT`                                     | Backend port                                                                             | `8000`                 |
+| `VLLM_PROXY_SQLITE_HOST_DIR`                    | Host directory for the Fastify SQLite cache DB                                           | `./fastify-proxy/data` |
+| `VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE`           | Optional webhook URL fired after chat completions                                        | _empty_                |
+| `VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS`   | Optional JSON headers sent with the webhook request                                      | _empty_                |
+| `VLLM_PROXY_SQLITE_CACHE`                       | Enable/disable writing requests/responses to the encrypted SQLite cache                  | `true`                 |
+| `VLLM_SQLITE_ENCRYPTION_KEY`                    | Secret used to encrypt/decrypt cached request/response bodies in SQLite                  | Required               |
+| `VLLM_PROXY_RESPONSE_SIGNING_SECRET`            | Secret for HMAC signatures on proxy responses (`X-Response-Signature` header)           | _empty_                |
+| `VLLM_PROXY_REQUEST_SIGNING_SECRET`             | Optional secret to verify inbound requests via HMAC (`x-request-signature` header)      | _empty_                |
+| `VLLM_PROXY_REQUEST_TIMEOUT`                    | Timeout for backend requests in milliseconds                                             | `600000` (10 min)      |
+| `VLLM_PROXY_WEBHOOK_TIMEOUT`                    | Timeout for webhook calls in milliseconds                                                | `30000` (30 s)         |
+| `NGINX_PORT`                                    | Nginx HTTP port                                                                          | `8080`                 |
+| `NGINX_SSL_PORT`                                | Nginx HTTPS port                                                                         | `8443`                 |
+| `NGINX_PROXY_CONNECT_TIMEOUT`                   | Nginx proxy connect timeout (seconds)                                                    | `90`                   |
+| `NGINX_PROXY_SEND_TIMEOUT`                      | Nginx proxy send/read timeout (seconds)                                                  | `330`                  |
+| `NGINX_BASIC_AUTH_USERNAME`                     | API username                                                                             | `admin`                |
+| `NGINX_BASIC_AUTH_PASSWORD`                     | API password                                                                             | `secure_password_123`  |
+| `RATE_LIMIT`                                    | Rate limit                                                                               | `10r/s`                |
+| `RATE_BURST`                                    | Rate limit burst                                                                         | `20`                   |
 
-Use `openssl` locally to generate secrets for `LMSTUDIO_SQLITE_ENCRYPTION_KEY` and
-`LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET`:
-
-| Purpose                | Command                             | Example output (paste into [.env](cci:7://file:///Volumes/Work/Projects/lmstudio-nginx-ngrok/.env:0:0-0:0))                                        |
-|------------------------|--------------------------------------|----------------------------------------------------------------------------|
-| 32‑byte base64 secret  | `openssl rand -base64 32`           | `k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM=`                             |
-| 32‑byte hex secret     | `openssl rand -hex 32`              | `9f2c4b7a6e1d3f508a9c2d4e7b1f6a3c5d8e0f1a2b3c4d5e6f708192a3b4c5d`         |
-
-Then in [.env](cci:7://file:///Volumes/Work/Projects/lmstudio-nginx-ngrok/.env:0:0-0:0):
+### Generating strong secrets
 
 ```bash
-LMSTUDIO_SQLITE_ENCRYPTION_KEY="k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM="
-LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET="k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM="
+openssl rand -base64 32
 ```
 
-If you want to **lock down inbound traffic coming through ngrok to only trusted callers** also set:
-
+Set in `.env`:
 ```bash
-LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET="k3gMdJXb3rUe6Z1gqYyFzXx0L9mVn4pQYg9b2Rsc6tM="
+VLLM_SQLITE_ENCRYPTION_KEY="<output>"
+VLLM_PROXY_RESPONSE_SIGNING_SECRET="<output>"
 ```
 
-When `LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET` is set, the Fastify proxy will **verify an HMAC over the JSON request body** for all `/v1/*` requests. Callers must send:
+To verify inbound requests via HMAC also set:
+```bash
+VLLM_PROXY_REQUEST_SIGNING_SECRET="<output>"
+```
+
+When `VLLM_PROXY_REQUEST_SIGNING_SECRET` is set, the Fastify proxy will **verify an HMAC over the JSON request body** for all `/v1/*` requests. Callers must send:
 
 - Header: `x-request-signature`
-- Value: `hex(HMAC_SHA256(LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET, JSON.stringify(body)))`
+- Value: `hex(HMAC_SHA256(VLLM_PROXY_REQUEST_SIGNING_SECRET, JSON.stringify(body)))`
 
-If the header is missing or invalid, the proxy responds with `401 { "error": "invalid_signature" }` and does not forward the request to LM Studio.
+If the header is missing or invalid, the proxy responds with `401 { "error": "invalid_signature" }`.
 
 ## Architecture
 
@@ -147,217 +125,125 @@ flowchart LR
     U[API Client / SDK]
   end
 
-  subgraph NgrokSide[Public Tunnel]
-    NG[Ngrok Tunnel\nregion=${NGROK_REGION}]
-  end
-
-  subgraph DockerNet[Docker Network: lmstudio-network]
+  subgraph DockerNet[Docker Network]
     subgraph NginxSvc[Nginx]
-      NX["Nginx\nPorts 80/443\nAuth: .htpasswd\nTLS: certs/"]
+      NX["Nginx\nPort 8080\nBasic Auth\nRate Limiting"]
     end
 
     subgraph FastifySvc[Fastify Proxy]
-      FP["Fastify LM Studio Proxy\nPort ${PROXY_PORT:-3000}"]
-      DB[("Encrypted SQLite DB\n${LMSTUDIO_PROXY_SQLITE_PATH}")]
+      FP["Fastify Proxy\nPort 3000"]
+      DB[("Encrypted SQLite\n${VLLM_PROXY_SQLITE_PATH}")]
     end
   end
 
-  subgraph HostSide[Host Machine]
-    LM["LM Studio Local Server\n${LMSTUDIO_HOST}:${LMSTUDIO_PORT}"]
-    ENV[".env (gitignored)\nNGINX_BASIC_AUTH_*\nLMSTUDIO_*\nNGROK_AUTHTOKEN"]
-    CFG["Generated nginx/*.conf\n(scripts/nginx/setup.sh)"]
+  subgraph Backend[LLM Backend]
+    LM["vLLM / LM Studio\n${VLLM_HOST}:${VLLM_PORT}"]
   end
 
-  %% Request flow
-  U -->|HTTPS request\nBasic Auth| NG
-  NG -->|HTTPS https://nginx:443| NX
+  U -->|HTTP request + Basic Auth| NX
   NX -->|/v1/* proxied| FP
-  FP -->|OpenAI-compatible\n/v1/*| LM
-
-  %% Persistence & webhooks
-  FP <-->|Encrypted cache\n(using LMSTUDIO_SQLITE_ENCRYPTION_KEY)| DB
-
-  %% Configuration flow
-  ENV --> CFG
-  CFG --> NX
-  ENV --> FP
-  ENV --> NG
+  FP -->|OpenAI-compatible /v1/*| LM
+  FP <-->|Encrypted cache| DB
 ```
 
 ## API Usage
 
-### Health Check (nginx)
+### Health Check
 ```bash
 curl http://localhost:8080/health
 ```
 
-### OpenAI-compatible LM Studio endpoints
-
-All LM Studio endpoints are exposed under `/v1/*` via nginx and the Fastify proxy.
-
-**List models**
+### List models
 ```bash
 curl -u username:password "http://localhost:8080/v1/models"
 ```
 
-**Non-streaming chat completion**
+### Non-streaming chat completion
 ```bash
 curl -u username:password \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "llama2",
-    "messages": [
-      {"role": "user", "content": "Hello, how are you?"}
-    ],
-    "stream": false
-  }' \
+  -d '{"model":"llama2","messages":[{"role":"user","content":"Hello!"}],"stream":false}' \
   "http://localhost:8080/v1/chat/completions"
 ```
 
-**Streaming chat completion**
+### Streaming chat completion
 ```bash
 curl -u username:password \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "llama2",
-    "messages": [
-      {"role": "user", "content": "Tell me a story"}
-    ],
-    "stream": true
-  }' \
+  -d '{"model":"llama2","messages":[{"role":"user","content":"Tell me a story"}],"stream":true}' \
   "http://localhost:8080/v1/chat/completions"
 ```
+
+## RunPod Deployment
+
+The project ships a single all-in-one image (`Dockerfile.runpod`) that runs **vLLM + Nginx + Fastify proxy** under supervisord.
+
+### Build and push
+
+```bash
+# Set your Docker Hub username
+export DOCKER_HUB_USERNAME=yourdockerhubuser
+
+make release-runpod
+```
+
+### Deploy on RunPod
+
+1. Go to **RunPod → Templates → New Template**
+2. Set **Container Image** to `yourdockerhubuser/vllm-nginx-proxy:latest`
+3. Set **Container Port** to `8080`
+4. Add environment variables:
+   ```
+   VLLM_MODEL=meta-llama/Llama-2-7b-chat-hf
+   NGINX_BASIC_AUTH_USERNAME=admin
+   NGINX_BASIC_AUTH_PASSWORD=<strong password>
+   VLLM_SQLITE_ENCRYPTION_KEY=<openssl rand -base64 32>
+   VLLM_PROXY_RESPONSE_SIGNING_SECRET=<openssl rand -base64 32>
+   ```
+5. Set GPU type (A100/H100 recommended for large models)
+6. Deploy — RunPod exposes port `8080` via HTTPS automatically
 
 ## Security Features
 
-- **Basic Authentication** - Username/password protection
+- **Basic Authentication** - Username/password protection via nginx
 - **Rate Limiting** - Configurable request limits
 - **Security Headers** - XSS protection, content-type sniffing prevention
-- **SSL/TLS Support** - Optional HTTPS with self-signed certificates
+- **Request/Response HMAC Signing** - Optional end-to-end integrity verification
+- **Encrypted Cache** - SQLite request/response cache encrypted at rest
 - **Request Size Limits** - Prevents large payload attacks
 - **Access Logging** - Monitor and audit API usage
 
 ## Monitoring
 
-### Service URLs
-- **LM Studio local server**: `localhost:1234`
-- **Ngrok Dashboard**: `http://localhost:4040`
 - **Nginx health check**: `http://localhost:8080/health`
-- **Fastify proxy health** (inside Docker): `curl http://localhost:3000/health` from the `lmstudio-fastify-proxy` container
-
-### Get Public URL
-```bash
-curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
-```
-
-## Usage
-
-### Get your ngrok URL:
-```bash
-curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
-```
-
-### Update Local environment: 
-Set `ngrokUrl` to your tunnel URL in Bruno environments
-
-### Test public access: 
-Use the new ngrok examples with authentication
-
-### View Logs
-```bash
-# All services
-docker compose logs -f
-
-# Specific services
-docker compose logs -f nginx
-docker compose logs -f lmstudio-fastify-proxy
-docker compose logs -f ngrok
-
-# Nginx access logs
-tail -f logs/access.log
-```
-
-## Management Scripts & Make targets
-
-From the project root:
-
-- `./scripts/setup.sh` – Initial setup and configuration
-- `./scripts/start.sh` – Start all services (LM Studio must already be running)
-- `./scripts/stop.sh` – Stop Docker services
-- `./scripts/test-api.sh` – Test API functionality
-
-Or use the Makefile shortcuts:
-
-- `make setup` – Run setup script
-- `make start` – Start all services
-- `make stop` – Stop all services
-- `make status` – Show Docker status, LM Studio status, nginx health, and Fastify proxy health
+- **Fastify proxy health** (inside Docker): `curl http://localhost:3000/health` from the `vllm-fastify-proxy` container
+- **All logs**: `docker compose logs -f`
+- **Specific service**: `docker compose logs -f nginx` / `docker compose logs -f vllm-fastify-proxy`
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **LM Studio not found**
-   
-   LM Studio must be installed manually from the official website:
+1. **Docker not running**
    ```bash
-   # Download and install from: https://lmstudio.ai/
-   # 
-   # For macOS: Download the .dmg file and drag to Applications folder
-   # For Windows: Download and run the installer
-   # For Linux: Download the AppImage or use the provided installation method
-   ```
-   
-   After installation:
-   1. Open LM Studio application
-   2. Go to the "Local Server" tab
-   3. Click "Start Server" to enable the API on port 1234
-   4. Optionally load a model for testing
-
-2. **Docker not running**
-   ```bash
-   # macOS
-   open -a Docker
-   
-   # Linux
-   sudo systemctl start docker
+   open -a Docker   # macOS
+   sudo systemctl start docker   # Linux
    ```
 
-3. **Ngrok authentication failed**
-   - Get your auth token from https://dashboard.ngrok.com
-   - Update `NGROK_AUTHTOKEN` in `.env`
+2. **Backend not reachable** — verify `VLLM_HOST` and `VLLM_PORT` in `.env` match your running LM Studio / vLLM instance.
 
-4. **Model not available**
+3. **Model not available**
    ```bash
-   # Start LM Studio server on port 1234
-   export LMSTUDIO_MODEL="your-preferred-model"
+   export VLLM_MODEL="your-preferred-model"
    ```
 
-5. **Permission denied on scripts**
+4. **Permission denied on scripts**
    ```bash
    chmod +x scripts/*.sh
    ```
 
-### Logs and Debugging
-
-- Check LM Studio: Verify server is running on port 1234
-- Check Docker: `docker-compose ps`
-- Check nginx config: `docker-compose exec nginx nginx -t`
-- Check ngrok status: `curl http://localhost:4040/api/tunnels`
-
-## Customization
-
-### Adding Custom nginx Configuration
-Edit `nginx/conf.d/default.conf` for custom routing or security rules.
-
-### Changing Rate Limits
-Update the `limit_req_zone` directives in `nginx/nginx.conf`.
-
-### Adding IP Whitelisting
-Add `allow` and `deny` directives in the nginx configuration.
-
-### Custom SSL Certificates
-Replace the self-signed certificates in the `certs/` directory.
+5. **Nginx config errors**
+   ```bash
+   docker compose exec nginx nginx -t
+   ```
 
 ## License
 

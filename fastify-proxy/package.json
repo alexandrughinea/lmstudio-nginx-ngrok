@@ -1,5 +1,5 @@
 {
-  "name": "lmstudio-fastify-proxy",
+  "name": "vllm-fastify-proxy",
   "version": "1.0.0",
   "type": "module",
   "main": "src/server.js",

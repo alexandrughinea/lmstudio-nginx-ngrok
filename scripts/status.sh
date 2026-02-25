@@ -10,37 +10,28 @@ echo "⦿ Service Status:"
 docker-compose ps
 echo ""
 
-echo "⦿ LM Studio Status:"
+echo "⦿ vLLM Backend Status:"
 if command -v lms >/dev/null 2>&1; then
     LMS_STATUS=$(lms server status 2>&1)
     if [ $? -eq 0 ] && [ -n "$LMS_STATUS" ]; then
         echo "$LMS_STATUS"
-        MODEL_COUNT=$(curl -s http://localhost:${LMSTUDIO_PORT:-1234}/v1/models 2>/dev/null | jq -r '.data | length' 2>/dev/null || echo "")
+        MODEL_COUNT=$(curl -s http://localhost:${VLLM_PORT:-8000}/v1/models 2>/dev/null | jq -r '.data | length' 2>/dev/null || echo "")
         if [ -n "$MODEL_COUNT" ] && [ "$MODEL_COUNT" -gt 0 ]; then
             echo "Available models: $MODEL_COUNT"
         fi
     else
-        echo "LM Studio CLI available but server not running"
+        echo "LMS CLI available but server not running"
     fi
 else
-    if curl -s http://localhost:${LMSTUDIO_PORT:-1234}/v1/models >/dev/null 2>&1; then
-        echo "LM Studio server running on port ${LMSTUDIO_PORT:-1234}"
-        MODEL_COUNT=$(curl -s http://localhost:${LMSTUDIO_PORT:-1234}/v1/models 2>/dev/null | jq -r '.data | length' 2>/dev/null || echo "")
+    if curl -s http://localhost:${VLLM_PORT:-8000}/v1/models >/dev/null 2>&1; then
+        echo "vLLM server running on port ${VLLM_PORT:-8000}"
+        MODEL_COUNT=$(curl -s http://localhost:${VLLM_PORT:-8000}/v1/models 2>/dev/null | jq -r '.data | length' 2>/dev/null || echo "")
         if [ -n "$MODEL_COUNT" ] && [ "$MODEL_COUNT" -gt 0 ]; then
             echo "Available models: $MODEL_COUNT"
         fi
     else
-        echo "LM Studio server not accessible on port ${LMSTUDIO_PORT:-1234}"
+        echo "vLLM server not accessible on port ${VLLM_PORT:-8000}"
     fi
-fi
-echo ""
-
-echo "⦿ Ngrok Status:"
-NGROK_URL=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null | jq -r '.tunnels[0].public_url // "Not available"' 2>/dev/null)
-if [ "$NGROK_URL" != "Not available" ] && [ -n "$NGROK_URL" ]; then
-    echo "$NGROK_URL"
-else
-    echo "Ngrok not running or no tunnels available"
 fi
 echo ""
 
@@ -57,8 +48,8 @@ fi
 
 echo ""
 echo "⦿ Fastify Proxy Status:"
-if docker ps --format '{{.Names}}' | grep -q '^lmstudio-fastify-proxy$'; then
-    if docker exec lmstudio-fastify-proxy curl -s http://localhost:3000/health >/dev/null 2>&1; then
+if docker ps --format '{{.Names}}' | grep -q '^vllm-fastify-proxy$'; then
+    if docker exec vllm-fastify-proxy curl -s http://localhost:3000/health >/dev/null 2>&1; then
         echo "Fastify proxy health check: OK"
     else
         echo "Fastify proxy health check: FAILED"

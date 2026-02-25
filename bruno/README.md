@@ -1,6 +1,6 @@
-# LM Studio API Testing with Bruno
+# API Testing with Bruno
 
-This Bruno collection provides comprehensive API testing for the LM Studio nginx proxy setup.
+This Bruno collection provides API testing for the vLLM nginx proxy setup.
 
 ## Structure
 
@@ -8,132 +8,61 @@ This Bruno collection provides comprehensive API testing for the LM Studio nginx
 bruno/
 ├── environments/           # Environment configurations
 │   ├── Local.bru          # Local development settings
-│   └── Production.bru     # Production settings
-├── lmstudio/              # LM Studio API endpoints
-│   ├── folder.bru         # Collection metadata
+│   └── Production.bru     # Production / RunPod settings
+├── lmstudio/              # API endpoints
+│   ├── folder.bru
 │   ├── LM Studio Chat Completions.bru
 │   ├── LM Studio Chat Completions (with schema).bru
 │   └── LM Studio List Models.bru
-├── ngrok/                 # Public ngrok tunnel endpoints
-│   ├── folder.bru         # Collection metadata
-│   ├── ngrok LM Studio Chat Completions.bru
-│   ├── ngrok LM Studio Chat Completions (with schema).bru
-│   ├── ngrok Authentication Test.bru
-│   ├── ngrok Health Check.bru
-│   └── ngrok LM Studio List Models.bru
-├── Authentication Test.bru # Local auth test
-├── Health Check.bru       # Local health check
-├── bruno.json            # Bruno configuration
-└── README.md             # This file
+├── Authentication Test.bru # Auth test
+├── Health Check.bru        # Health check
+├── bruno.json
+└── README.md
 ```
 
 ## Getting Started
 
-1. **Install Bruno**: Download from [bruno.sh](https://www.usebruno.com/)
-
+1. **Install Bruno**: Download from [usebruno.com](https://www.usebruno.com/)
 2. **Open Collection**: Open this `bruno/` folder in Bruno
-
-3. **Configure Environment**: 
-   - Select "Local" environment for local testing
-   - Update `ngrok_url` variable after starting services
-
-4. **Start Services**:
+3. **Select Environment**: "Local" for local dev, "Production" for RunPod/remote
+4. **Start services**:
    ```bash
    cd ../
-   ./start.sh
-   ```
-
-5. **Get ngrok URL**:
-   ```bash
-   curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
    ```
 
 ## Environment Variables
 
-### Local Environment
-- `base_url`: `http://localhost:8080` - Local nginx proxy
-- `ngrok_url`: Your ngrok tunnel URL
-- `auth_username`: `admin` - Basic auth username
-- `auth_password`: `secure_password_123` - Basic auth password
-- `lmstudio_model`: `gemma3:27b` - LM Studio model name
+### Local
+- `base_url`: `http://localhost:8080`
+- `auth_username`: `admin`
+- `auth_password`: your password
+- `fastify_url`: `http://localhost:3000`
 
-### Production Environment
-- `base_url`: Your production domain
-- `ngrok_url`: Your production ngrok URL
-- `auth_username`: Production username
-- `auth_password`: Production password
-- `lmstudio_model`: Production model name
+### Production
+- `base_url`: Your RunPod or production domain (HTTPS provided by RunPod)
+- `auth_username` / `auth_password`: Production credentials
 
 ## API Endpoints
 
-### LM Studio Collection (`/lmstudio/`)
-Direct access to LM Studio through the nginx proxy:
-
-- **Chat Completions**: Standard OpenAI-compatible chat
-- **Chat Completions (with schema)**: Structured output with JSON schema
-- **List Models**: Available models in LM Studio
-
-### ngrok Collection (`/ngrok/`)
-Public access through ngrok tunnel:
-
-- **Chat Completions**: Public chat endpoint
-- **Chat Completions (with schema)**: Public structured output
-- **Authentication Test**: Test auth through tunnel
-- **Health Check**: Service status through tunnel
-- **List Models**: Available models through tunnel
-
-### Root Collection
-Basic service endpoints:
-
-- **Authentication Test**: Test local auth
-- **Health Check**: Local service status
-
-## Features Tested
-
-### Structured Outputs
-LM Studio provides superior structured output quality through:
-- **GGUF models**: Grammar-based sampling via llama.cpp
-- **MLX models**: Constrained generation via Outlines library
-- **Schema enforcement**: Guaranteed JSON compliance at inference level
-
-### Authentication
-- Basic HTTP authentication on all protected endpoints
-- Health check endpoint accessible without auth
-
-### Error Handling
-- Proper error responses for invalid requests
-- Authentication failures
-- Model not found errors
-
-## Usage Tips
-
-1. **Start with Health Check**: Always test the health endpoint first
-2. **Verify Authentication**: Use the auth test before API calls
-3. **Test Locally First**: Use local endpoints before ngrok
-4. **Monitor Logs**: Check Docker logs for debugging
-5. **Update ngrok URL**: Remember to update the ngrok_url variable
+- **Health Check**: `GET /health` — no auth required
+- **List Models**: `GET /v1/models`
+- **Chat Completions**: `POST /v1/chat/completions`
+- **Chat Completions (with schema)**: Structured JSON output
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **Connection refused**: Ensure services are running (`./start.sh`)
-2. **Authentication failed**: Check username/password in environment
-3. **Model not found**: Verify model is loaded in LM Studio
-4. **ngrok tunnel down**: Restart services or check ngrok dashboard
-
-### Debugging Commands
+1. **Connection refused** — ensure services are running: `docker compose ps`
+2. **Authentication failed** — check `auth_username` / `auth_password` in environment
+3. **Model not found** — verify `VLLM_MODEL` matches a loaded model
 
 ```bash
 # Check service status
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
-# Test local connectivity
-curl -u admin:secure_password_123 http://localhost:8080/health
-
-# Get ngrok status
-curl http://localhost:4040/api/tunnels
+# Quick health check
+curl -u admin:password http://localhost:8080/health
 ```

@@ -1,0 +1,36 @@
+# Local development overlay (Mac / no GPU)
+#
+# Tests the full nginx → fastify-proxy pipeline against any locally-running
+# OpenAI-compatible backend (LM Studio, Ollama, llama.cpp, etc.).
+# No vLLM container, HTTP-only nginx on port 8080.
+#
+# Usage:
+#   # With LM Studio running on localhost:1234:
+#   VLLM_HOST=host.docker.internal VLLM_PORT=1234 \
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+#   # With Ollama running on localhost:11434:
+#   VLLM_HOST=host.docker.internal VLLM_PORT=11434 \
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+#   # Or set VLLM_HOST / VLLM_PORT in .env and just run:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+
+services:
+
+  # ── nginx (HTTP only, port 8080, no SSL) ─────────────────────────────────
+  nginx:
+    ports:
+      - "${NGINX_PORT:-8080}:8080"
+    volumes:
+      - ./nginx/conf.d/default.runpod.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - fastify-proxy
+
+  # ── fastify-proxy (backend = host machine) ────────────────────────────────
+  # host.docker.internal always resolves to the Mac host from inside a container.
+  # VLLM_PORT can be overridden if your local backend listens on a different port.
+  fastify-proxy:
+    environment:
+      - VLLM_HOST=host.docker.internal
+      - VLLM_PORT=1234

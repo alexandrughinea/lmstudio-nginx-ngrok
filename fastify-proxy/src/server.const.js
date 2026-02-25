@@ -1,27 +1,27 @@
 export const ENCODING = 'utf8';
-export const LMSTUDIO_HOST = process.env.LMSTUDIO_HOST || 'host.docker.internal';
-export const LMSTUDIO_PORT = process.env.LMSTUDIO_PORT || '1234';
+export const VLLM_HOST = process.env.VLLM_HOST || 'host.docker.internal';
+export const VLLM_PORT = process.env.VLLM_PORT || '8000';
 export const PROXY_PORT = process.env.PROXY_PORT || '3000';
-export const LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE =
-  process.env.LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE || '';
-export const LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS =
-  process.env.LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS || '';
-export const LMSTUDIO_PROXY_SQLITE_PATH =
-  process.env.LMSTUDIO_PROXY_SQLITE_PATH || '/data/lmstudio-proxy.db';
-export const LMSTUDIO_PROXY_SQLITE_CACHE = process.env.LMSTUDIO_PROXY_SQLITE_CACHE !== 'false';
-export const LMSTUDIO_PROXY_REQUEST_TIMEOUT = parseInt(
-  process.env.LMSTUDIO_PROXY_REQUEST_TIMEOUT || '900000',
+export const VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE =
+  process.env.VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE || '';
+export const VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS =
+  process.env.VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS || '';
+export const VLLM_PROXY_SQLITE_PATH =
+  process.env.VLLM_PROXY_SQLITE_PATH || '/data/vllm-proxy.db';
+export const VLLM_PROXY_SQLITE_CACHE = process.env.VLLM_PROXY_SQLITE_CACHE !== 'false';
+export const VLLM_PROXY_REQUEST_TIMEOUT = parseInt(
+  process.env.VLLM_PROXY_REQUEST_TIMEOUT || '900000',
   10,
 ); // 15 minutes default
-export const LMSTUDIO_PROXY_WEBHOOK_TIMEOUT = parseInt(
-  process.env.LMSTUDIO_PROXY_WEBHOOK_TIMEOUT || '30000',
+export const VLLM_PROXY_WEBHOOK_TIMEOUT = parseInt(
+  process.env.VLLM_PROXY_WEBHOOK_TIMEOUT || '30000',
   10,
 ); // 30 seconds default
-export const LMSTUDIO_SQLITE_ENCRYPTION_KEY = process.env.LMSTUDIO_SQLITE_ENCRYPTION_KEY || '';
-export const LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET =
-  process.env.LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET || '';
-export const LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET =
-  process.env.LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET || '';
+export const VLLM_SQLITE_ENCRYPTION_KEY = process.env.VLLM_SQLITE_ENCRYPTION_KEY || '';
+export const VLLM_PROXY_RESPONSE_SIGNING_SECRET =
+  process.env.VLLM_PROXY_RESPONSE_SIGNING_SECRET || '';
+export const VLLM_PROXY_REQUEST_SIGNING_SECRET =
+  process.env.VLLM_PROXY_REQUEST_SIGNING_SECRET || '';
 
 export const CREATE_REQUESTS_TABLE = `
     CREATE TABLE IF NOT EXISTS requests

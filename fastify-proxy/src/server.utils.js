@@ -1,9 +1,9 @@
 import { request as undiciRequest } from 'undici';
 import {
-  LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE,
-  LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS,
-  LMSTUDIO_PROXY_WEBHOOK_TIMEOUT,
-  LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET,
+  VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE,
+  VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS,
+  VLLM_PROXY_WEBHOOK_TIMEOUT,
+  VLLM_PROXY_REQUEST_SIGNING_SECRET,
 } from './server.const.js';
 import { SigningService } from './services/signing.service.js';
 import { HeadersSchema } from './server.schemas.js';
@@ -23,7 +23,7 @@ function parseWebhookHeaders(envHeaders) {
 }
 
 export async function verifyRequestSignature(body, headers) {
-  if (!LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET) {
+  if (!VLLM_PROXY_REQUEST_SIGNING_SECRET) {
     return true;
   }
 
@@ -34,20 +34,20 @@ export async function verifyRequestSignature(body, headers) {
   return signingService.verifyHmac(
     payloadForSigning,
     signature,
-    LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET,
+    VLLM_PROXY_REQUEST_SIGNING_SECRET,
   );
 }
 
 export async function callWebhook(fastify, webhookPayload, webhookEventType) {
-  if (!LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE) {
-    fastify?.log.warn('LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE is not set; skipping webhook');
+  if (!VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE) {
+    fastify?.log.warn('VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE is not set; skipping webhook');
     return;
   }
 
-  const separator = LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE.includes('?') ? '&' : '?';
+  const separator = VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE.includes('?') ? '&' : '?';
   const encodedEventType = encodeURIComponent(webhookEventType);
-  const url = `${LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE}${separator}eventType=${encodedEventType}`;
-  const parsedHeaders = parseWebhookHeaders(LMSTUDIO_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS);
+  const url = `${VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE}${separator}eventType=${encodedEventType}`;
+  const parsedHeaders = parseWebhookHeaders(VLLM_PROXY_WEBHOOK_ON_CHAT_COMPLETE_HEADERS);
   const headers = new Headers(parsedHeaders);
 
   try {
@@ -57,8 +57,8 @@ export async function callWebhook(fastify, webhookPayload, webhookEventType) {
       method: 'POST',
       headers,
       body: JSON.stringify(webhookPayload),
-      headersTimeout: LMSTUDIO_PROXY_WEBHOOK_TIMEOUT,
-      bodyTimeout: LMSTUDIO_PROXY_WEBHOOK_TIMEOUT,
+      headersTimeout: VLLM_PROXY_WEBHOOK_TIMEOUT,
+      bodyTimeout: VLLM_PROXY_WEBHOOK_TIMEOUT,
     });
 
     await response.body.text();

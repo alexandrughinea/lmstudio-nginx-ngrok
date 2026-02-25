@@ -16,10 +16,6 @@ certs/*.key
 # Nginx auth files
 nginx/.htpasswd
 
-# Ngrok
-ngrok
-ngrok.exe
-
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -44,3 +40,6 @@ bruno/environments/*.bruidea/
 *.db-journal
 fastify-proxy/data/
 node_modules/
+
+# vLLM local model cache
+vllm-cache/

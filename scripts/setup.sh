@@ -2,7 +2,7 @@
 
 set -e
 
-echo "Setting up LM Studio, Nginx, Ngrok proxy..."
+echo "Setting up Nginx, Fastify proxy..."
 
 if [ -f .env ]; then
     source .env
@@ -31,45 +31,45 @@ if [ -z "$NGINX_BASIC_AUTH_PASSWORD" ] || [ "$NGINX_BASIC_AUTH_PASSWORD" = "secu
     SECRETS_GENERATED=true
 fi
 
-if [ -z "$LMSTUDIO_SQLITE_ENCRYPTION_KEY" ]; then
-    echo "No `LMSTUDIO_SQLITE_ENCRYPTION_KEY` set. Generating encryption key..."
-    LMSTUDIO_SQLITE_ENCRYPTION_KEY=$(openssl rand -base64 32)
+if [ -z "$VLLM_SQLITE_ENCRYPTION_KEY" ]; then
+    echo "No \`VLLM_SQLITE_ENCRYPTION_KEY\` set. Generating encryption key..."
+    VLLM_SQLITE_ENCRYPTION_KEY=$(openssl rand -base64 32)
     
-    if grep -q "^LMSTUDIO_SQLITE_ENCRYPTION_KEY=" .env; then
-        sed -i.bak "s|^LMSTUDIO_SQLITE_ENCRYPTION_KEY=.*|LMSTUDIO_SQLITE_ENCRYPTION_KEY=${LMSTUDIO_SQLITE_ENCRYPTION_KEY}|" .env
+    if grep -q "^VLLM_SQLITE_ENCRYPTION_KEY=" .env; then
+        sed -i.bak "s|^VLLM_SQLITE_ENCRYPTION_KEY=.*|VLLM_SQLITE_ENCRYPTION_KEY=${VLLM_SQLITE_ENCRYPTION_KEY}|" .env
     else
-        echo "LMSTUDIO_SQLITE_ENCRYPTION_KEY=${LMSTUDIO_SQLITE_ENCRYPTION_KEY}" >> .env
+        echo "VLLM_SQLITE_ENCRYPTION_KEY=${VLLM_SQLITE_ENCRYPTION_KEY}" >> .env
     fi
     
-    echo "Generated `LMSTUDIO_SQLITE_ENCRYPTION_KEY`"
+    echo "Generated \`VLLM_SQLITE_ENCRYPTION_KEY\`"
     SECRETS_GENERATED=true
 fi
 
-if [ -z "$LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET" ]; then
-    echo "No `LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET` set. Generating signing secret..."
-    LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=$(openssl rand -base64 32)
+if [ -z "$VLLM_PROXY_RESPONSE_SIGNING_SECRET" ]; then
+    echo "No \`VLLM_PROXY_RESPONSE_SIGNING_SECRET\` set. Generating signing secret..."
+    VLLM_PROXY_RESPONSE_SIGNING_SECRET=$(openssl rand -base64 32)
 
-    if grep -q "^LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=" .env; then
-        sed -i.bak "s|^LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=.*|LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=${LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET}|" .env
+    if grep -q "^VLLM_PROXY_RESPONSE_SIGNING_SECRET=" .env; then
+        sed -i.bak "s|^VLLM_PROXY_RESPONSE_SIGNING_SECRET=.*|VLLM_PROXY_RESPONSE_SIGNING_SECRET=${VLLM_PROXY_RESPONSE_SIGNING_SECRET}|" .env
     else
-        echo "LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET=${LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET}" >> .env
+        echo "VLLM_PROXY_RESPONSE_SIGNING_SECRET=${VLLM_PROXY_RESPONSE_SIGNING_SECRET}" >> .env
     fi
 
-    echo "Generated `LMSTUDIO_PROXY_RESPONSE_SIGNING_SECRET`"
+    echo "Generated \`VLLM_PROXY_RESPONSE_SIGNING_SECRET\`"
     SECRETS_GENERATED=true
 fi
 
-if [ -z "$LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET" ]; then
-    echo "No `LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET` set. Generating request signing secret..."
-    LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET=$(openssl rand -base64 32)
+if [ -z "$VLLM_PROXY_REQUEST_SIGNING_SECRET" ]; then
+    echo "No \`VLLM_PROXY_REQUEST_SIGNING_SECRET\` set. Generating request signing secret..."
+    VLLM_PROXY_REQUEST_SIGNING_SECRET=$(openssl rand -base64 32)
 
-    if grep -q "^LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET=" .env; then
-        sed -i.bak "s|^LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET=.*|LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET=${LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET}|" .env
+    if grep -q "^VLLM_PROXY_REQUEST_SIGNING_SECRET=" .env; then
+        sed -i.bak "s|^VLLM_PROXY_REQUEST_SIGNING_SECRET=.*|VLLM_PROXY_REQUEST_SIGNING_SECRET=${VLLM_PROXY_REQUEST_SIGNING_SECRET}|" .env
     else
-        echo "LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET=${LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET}" >> .env
+        echo "VLLM_PROXY_REQUEST_SIGNING_SECRET=${VLLM_PROXY_REQUEST_SIGNING_SECRET}" >> .env
     fi
 
-    echo "Generated `LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET`"
+    echo "Generated \`VLLM_PROXY_REQUEST_SIGNING_SECRET\`"
     SECRETS_GENERATED=true
 fi
 
@@ -134,17 +134,15 @@ fi
 echo "Setup completed successfully!"
 echo ""
 echo "Next steps:"
-echo "1. Update your .env file with your ngrok auth token"
-echo "2. Build containers: make build"
-echo "3. Start all services: make start"
-echo "4. Access the ngrok web interface at http://localhost:4040"
+echo "1. Build containers: make build"
+echo "2. Start all services: make start"
 echo ""
 echo "Configuration:"
-echo "- LM Studio model: $LMSTUDIO_MODEL"
-echo "- LM Studio: ${LMSTUDIO_HOST}:${LMSTUDIO_PORT}"
+echo "- vLLM model: $VLLM_MODEL"
+echo "- vLLM backend: ${VLLM_HOST}:${VLLM_PORT}"
 echo "- Fastify proxy: port ${PROXY_PORT}"
-echo "- Fastify timeout: ${LMSTUDIO_PROXY_REQUEST_TIMEOUT}ms ($(( ${LMSTUDIO_PROXY_REQUEST_TIMEOUT} / 1000 ))s)"
-echo "- Fastify cache: ${LMSTUDIO_PROXY_SQLITE_CACHE:-true}"
+echo "- Fastify timeout: ${VLLM_PROXY_REQUEST_TIMEOUT}ms ($(( ${VLLM_PROXY_REQUEST_TIMEOUT:-900000} / 1000 ))s)"
+echo "- Fastify cache: ${VLLM_PROXY_SQLITE_CACHE:-true}"
 echo "- Nginx port: $NGINX_PORT"
 echo "- Nginx timeouts: connect=${NGINX_PROXY_CONNECT_TIMEOUT}s, send/read=${NGINX_PROXY_SEND_TIMEOUT}s"
 echo "- VLLM Bridge: $VLLM_BRIDGE_ENABLED (port: $VLLM_BRIDGE_PORT)"

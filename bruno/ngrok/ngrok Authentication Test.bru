@@ -1,0 +1,22 @@
+meta {
+  name: ngrok Authentication Test
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{ngrok_url}}/health
+  body: none
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # ngrok Authentication Test
+  
+  Tests basic authentication against the LM Studio proxy through ngrok tunnel.
+  This endpoint should return a 200 OK status with authentication.
+}

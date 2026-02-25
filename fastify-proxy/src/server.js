@@ -19,12 +19,12 @@ import {
   ENCODING,
   INSERT_REQUEST_QUERY,
   INSERT_RESPONSE_QUERY,
-  LMSTUDIO_HOST,
-  LMSTUDIO_PORT,
-  LMSTUDIO_PROXY_SQLITE_CACHE,
-  LMSTUDIO_PROXY_REQUEST_TIMEOUT,
-  LMSTUDIO_SQLITE_ENCRYPTION_KEY,
-  LMSTUDIO_PROXY_SQLITE_PATH,
+  VLLM_HOST,
+  VLLM_PORT,
+  VLLM_PROXY_SQLITE_CACHE,
+  VLLM_PROXY_REQUEST_TIMEOUT,
+  VLLM_SQLITE_ENCRYPTION_KEY,
+  VLLM_PROXY_SQLITE_PATH,
   PROXY_PORT,
   SELECT_LATEST_SUCCESS_RESPONSE_BY_EXTERNAL_ID,
 } from './server.const.js';
@@ -33,12 +33,12 @@ import { callWebhook, verifyRequestSignature } from './server.utils.js';
 import { EncryptionService } from './services/encryption.service.js';
 import { SigningService } from './services/signing.service.js';
 
-const encryptionService = new EncryptionService(LMSTUDIO_SQLITE_ENCRYPTION_KEY);
+const encryptionService = new EncryptionService(VLLM_SQLITE_ENCRYPTION_KEY);
 const signingService = new SigningService();
 
 const db = (function dbInitialization() {
-  fs.mkdirSync(path.dirname(LMSTUDIO_PROXY_SQLITE_PATH), { recursive: true });
-  const db = new Database(LMSTUDIO_PROXY_SQLITE_PATH);
+  fs.mkdirSync(path.dirname(VLLM_PROXY_SQLITE_PATH), { recursive: true });
+  const db = new Database(VLLM_PROXY_SQLITE_PATH);
 
   db.exec(`
         ${DROP_RESPONSES_TABLE}
@@ -59,11 +59,11 @@ const db = (function dbInitialization() {
 })();
 
 const fastify = Fastify({
-  logger: LMSTUDIO_PROXY_SQLITE_CACHE,
+  logger: VLLM_PROXY_SQLITE_CACHE,
 });
 
 fastify.all('/v1/*', async (request, reply) => {
-  const targetUrl = `http://${LMSTUDIO_HOST}:${LMSTUDIO_PORT}${request.raw.url}`;
+  const targetUrl = `http://${VLLM_HOST}:${VLLM_PORT}${request.raw.url}`;
   const isChatCompletion =
     request.method === 'POST' && request.raw.url.startsWith('/v1/chat/completions');
   let body;
@@ -121,7 +121,7 @@ fastify.all('/v1/*', async (request, reply) => {
     }
   }
 
-  if (LMSTUDIO_PROXY_SQLITE_CACHE) {
+  if (VLLM_PROXY_SQLITE_CACHE) {
     try {
       const requestBodyText = JSON.stringify(body || {});
       const encryptedRequestBody = encryptionService.encrypt(requestBodyText);
@@ -135,14 +135,14 @@ fastify.all('/v1/*', async (request, reply) => {
   try {
     const upstreamHeaders = {
       ...request.headers,
-      host: `${LMSTUDIO_HOST}:${LMSTUDIO_PORT}`,
+      host: `${VLLM_HOST}:${VLLM_PORT}`,
     };
     const upstream = await undiciRequest(targetUrl, {
       method: request.method,
       body: body ? JSON.stringify(body) : undefined,
       headers: upstreamHeaders,
-      headersTimeout: LMSTUDIO_PROXY_REQUEST_TIMEOUT,
-      bodyTimeout: LMSTUDIO_PROXY_REQUEST_TIMEOUT,
+      headersTimeout: VLLM_PROXY_REQUEST_TIMEOUT,
+      bodyTimeout: VLLM_PROXY_REQUEST_TIMEOUT,
       reset: true,
     });
 
@@ -168,7 +168,7 @@ fastify.all('/v1/*', async (request, reply) => {
         }
       } catch {}
 
-      if (LMSTUDIO_PROXY_SQLITE_CACHE) {
+      if (VLLM_PROXY_SQLITE_CACHE) {
         try {
           const responseId = uuidv4();
           const responseText = bodyBuffer.toString();
@@ -216,7 +216,7 @@ fastify.all('/v1/*', async (request, reply) => {
 
       reply.send(text);
 
-      if (LMSTUDIO_PROXY_SQLITE_CACHE) {
+      if (VLLM_PROXY_SQLITE_CACHE) {
         try {
           const responseId = uuidv4();
           const encryptedResponseBody = encryptionService.encrypt(text);
@@ -256,6 +256,11 @@ fastify.all('/v1/*', async (request, reply) => {
       return;
     }
 
+    // Fastify may still attach a content-length even though we skipped it
+    // when copying upstream headers. Explicitly remove it so nginx doesn't
+    // receive both Content-Length and Transfer-Encoding at the same time.
+    reply.removeHeader('content-length');
+
     const chunks = [];
     upstream.body.on('data', (chunk) => {
       chunks.push(chunk);
@@ -266,7 +271,7 @@ fastify.all('/v1/*', async (request, reply) => {
       reply.raw.end();
       const text = Buffer.concat(chunks).toString(ENCODING);
 
-      if (LMSTUDIO_PROXY_SQLITE_CACHE) {
+      if (VLLM_PROXY_SQLITE_CACHE) {
         try {
           const responseId = uuidv4();
           const encryptedResponseBody = encryptionService.encrypt(text);
@@ -311,7 +316,7 @@ fastify.all('/v1/*', async (request, reply) => {
         timestamp: new Date().toISOString(),
       });
 
-      if (LMSTUDIO_PROXY_SQLITE_CACHE) {
+      if (VLLM_PROXY_SQLITE_CACHE) {
         fastify.log.error({ error }, 'Upstream stream error');
         try {
           const responseId = uuidv4();
@@ -333,9 +338,9 @@ fastify.all('/v1/*', async (request, reply) => {
       await callWebhook(fastify, errorPayload, WebhookEventTypeSchema.enum.error);
     });
   } catch (error) {
-    fastify.log.error({ error }, 'error proxying to LM Studio');
+    fastify.log.error({ error }, 'error proxying to vLLM');
 
-    if (isChatCompletion && LMSTUDIO_PROXY_SQLITE_CACHE) {
+    if (isChatCompletion && VLLM_PROXY_SQLITE_CACHE) {
       const errorPayload = WebhookErrorPayloadSchema.parse({
         id: requestId,
         status: WebhookStatusSchema.enum.error,
@@ -362,7 +367,7 @@ fastify.all('/v1/*', async (request, reply) => {
     }
 
     reply.code(500).send({
-      error: 'LM Studio proxy error',
+      error: 'vLLM proxy error',
       message: error.message,
     });
   }
@@ -372,8 +377,8 @@ fastify.get('/health', async (request, reply) => {
   const now = new Date().toISOString();
 
   try {
-    const lmstudioUrl = `http://${LMSTUDIO_HOST}:${LMSTUDIO_PORT}/v1/models`;
-    const upstream = await undiciRequest(lmstudioUrl, {
+    const vllmUrl = `http://${VLLM_HOST}:${VLLM_PORT}/v1/models`;
+    const upstream = await undiciRequest(vllmUrl, {
       method: 'GET',
       headersTimeout: 5000,
       bodyTimeout: 5000,
@@ -395,7 +400,7 @@ fastify.get('/health', async (request, reply) => {
       date: now,
     });
   } catch (error) {
-    fastify.log.error({ error }, 'LM Studio health check failed');
+    fastify.log.error({ error }, 'vLLM health check failed');
 
     reply.code(503).send({
       status: HealthStatusSchema.enum.UNHEALTHY,
@@ -408,7 +413,7 @@ fastify.get('/health', async (request, reply) => {
 fastify
   .listen({ port: Number(PROXY_PORT), host: '0.0.0.0' })
   .then((address) => {
-    fastify.log.info(`Fastify LM Studio proxy listening at ${address}`);
+    fastify.log.info(`Fastify vLLM proxy listening at ${address}`);
   })
   .catch((error) => {
     fastify.log.error(error);

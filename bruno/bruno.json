@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "name": "lmstudio-nginx-ngrok",
+  "name": "vllm-nginx-proxy",
   "type": "collection",
   "ignore": [
     "node_modules",

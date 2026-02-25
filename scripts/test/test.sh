@@ -14,7 +14,7 @@ CURL_OPTS="-k"
 
 AUTH="$NGINX_BASIC_AUTH_USERNAME:$NGINX_BASIC_AUTH_PASSWORD"
 
-echo "Testing LM Studio API through nginx proxy..."
+echo "Testing vLLM API through nginx proxy..."
 echo ""
 
 echo "1. Testing health endpoint..."
@@ -25,11 +25,11 @@ echo "2. Testing authentication and listing available models..."
 MODELS_BODY='{}'
 MODELS_SIGNATURE=""
 
-if [ -n "$LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET" ]; then
+if [ -n "$VLLM_PROXY_REQUEST_SIGNING_SECRET" ]; then
     echo "  Signature validation is enabled"
     if command -v node &> /dev/null; then
         echo "  Generating signature..."
-        MODELS_SIGNATURE=$(node scripts/test/sign-request.js "$LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET" "$MODELS_BODY" 2>&1)
+        MODELS_SIGNATURE=$(node scripts/test/sign-request.js "$VLLM_PROXY_REQUEST_SIGNING_SECRET" "$MODELS_BODY" 2>&1)
         if [ $? -eq 0 ] && [ -n "$MODELS_SIGNATURE" ]; then
             echo "  ✓ Signature generated: ${MODELS_SIGNATURE:0:20}..."
         else
@@ -68,14 +68,14 @@ fi
 if [ "$HTTP_STATUS" = "401" ]; then
     echo "  ✗ Authentication failed (401 Unauthorized)"
     echo "  Response body: $MODELS_BODY_RESPONSE"
-    if [ -n "$LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET" ] && [ -z "$MODELS_SIGNATURE" ]; then
+    if [ -n "$VLLM_PROXY_REQUEST_SIGNING_SECRET" ] && [ -z "$MODELS_SIGNATURE" ]; then
         echo ""
         echo "  Issue: Signature validation is enabled but signature generation failed."
-        echo "  Solution: Install Node.js or check LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET"
-    elif [ -n "$LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET" ]; then
+        echo "  Solution: Install Node.js or check VLLM_PROXY_REQUEST_SIGNING_SECRET"
+    elif [ -n "$VLLM_PROXY_REQUEST_SIGNING_SECRET" ]; then
         echo ""
         echo "  Issue: Signature validation failed."
-        echo "  Check: LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET matches between backend and proxy"
+        echo "  Check: VLLM_PROXY_REQUEST_SIGNING_SECRET matches between backend and proxy"
     fi
     exit 1
 elif [ "$HTTP_STATUS" = "200" ]; then
@@ -96,17 +96,17 @@ else
 fi
 echo ""
 
-if [ -z "$LMSTUDIO_MODEL" ]; then
-    echo "⚠ LMSTUDIO_MODEL not set, skipping chat completion test"
+if [ -z "$VLLM_MODEL" ]; then
+    echo "⚠ VLLM_MODEL not set, skipping chat completion test"
     echo ""
     echo "✓ API tests completed!"
     exit 0
 fi
 
-echo "3. Testing chat completion with model: $LMSTUDIO_MODEL"
+echo "3. Testing chat completion with model: $VLLM_MODEL"
 if command -v jq &> /dev/null; then
     CHAT_BODY=$(jq -c -n \
-      --arg model "$LMSTUDIO_MODEL" \
+      --arg model "$VLLM_MODEL" \
       '{
         model: $model,
         messages: [{role: "user", content: "Say '\''Hello, this is a test!'\'' and nothing else."}],
@@ -114,14 +114,14 @@ if command -v jq &> /dev/null; then
         temperature: 0.7
       }')
 else
-    CHAT_BODY="{\"model\":\"$LMSTUDIO_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say 'Hello, this is a test!' and nothing else.\"}],\"max_tokens\":50,\"temperature\":0.7}"
+    CHAT_BODY="{\"model\":\"$VLLM_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say 'Hello, this is a test!' and nothing else.\"}],\"max_tokens\":50,\"temperature\":0.7}"
 fi
 
 CHAT_SIGNATURE=""
-if [ -n "$LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET" ]; then
+if [ -n "$VLLM_PROXY_REQUEST_SIGNING_SECRET" ]; then
     echo "  Generating signature..."
     if command -v node &> /dev/null; then
-        CHAT_SIGNATURE=$(node scripts/test/sign-request.js "$LMSTUDIO_PROXY_REQUEST_SIGNING_SECRET" "$CHAT_BODY" 2>&1)
+        CHAT_SIGNATURE=$(node scripts/test/sign-request.js "$VLLM_PROXY_REQUEST_SIGNING_SECRET" "$CHAT_BODY" 2>&1)
         if [ $? -eq 0 ] && [ -n "$CHAT_SIGNATURE" ]; then
             echo "  ✓ Signature generated: ${CHAT_SIGNATURE:0:20}..."
         else
@@ -173,6 +173,3 @@ fi
 echo ""
 
 echo "API tests completed!"
-echo ""
-echo "Get your public ngrok URL:"
-echo "   curl -s http://localhost:4040/api/tunnels | jq '.tunnels[0].public_url'"

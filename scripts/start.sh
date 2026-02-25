@@ -2,7 +2,7 @@
 
 set -e
 
-echo "⦿ Starting LM Studio, Fastify proxy, Nginx, Ngrok services..."
+echo "⦿ Starting Fastify proxy, Nginx services..."
 
 if [ -f .env ]; then
     source .env
@@ -38,21 +38,21 @@ if [[ "$AVAILABLE_MODELS" == *"error"* ]]; then
     echo "Could not list available models"
     echo "   Continuing with service startup..."
 else
-    if echo "$AVAILABLE_MODELS" | grep -q "$LMSTUDIO_MODEL"; then
-        echo "Model $LMSTUDIO_MODEL is available"
+    if echo "$AVAILABLE_MODELS" | grep -q "$VLLM_MODEL"; then
+        echo "Model $VLLM_MODEL is available"
     else
-        echo "Model $LMSTUDIO_MODEL not found in downloaded models"
-        echo "   You can download it with: lms get $LMSTUDIO_MODEL"
+        echo "Model $VLLM_MODEL not found in downloaded models"
+        echo "   You can download it with: lms get $VLLM_MODEL"
         echo "   Continuing with service startup..."
     fi
 fi
 
 echo "⦿ Verifying HTTP API access..."
-HOST_FOR_CHECK=${LMSTUDIO_HOST:-localhost}
-if curl -s "http://${HOST_FOR_CHECK}:${LMSTUDIO_PORT}/v1/models" > /dev/null 2>&1; then
-    echo "LM Studio API is accessible at ${HOST_FOR_CHECK}:${LMSTUDIO_PORT}"
+HOST_FOR_CHECK=${VLLM_HOST:-localhost}
+if curl -s "http://${HOST_FOR_CHECK}:${VLLM_PORT}/v1/models" > /dev/null 2>&1; then
+    echo "vLLM API is accessible at ${HOST_FOR_CHECK}:${VLLM_PORT}"
 else
-    echo "Cannot access LM Studio API at ${LMSTUDIO_HOST}:${LMSTUDIO_PORT}"
+    echo "Cannot access vLLM API at ${VLLM_HOST}:${VLLM_PORT}"
     echo "   Please start LM Studio server first:"
     echo "   1. Open LM Studio application"
     echo "   2. Go to Local Server tab"
@@ -85,31 +85,11 @@ echo "   Start it with: lms server start"
 echo "   Or open LM Studio app and go to Local Server tab"
 echo ""
 
-echo "Waiting for ngrok tunnel to establish..."
-sleep 5
-NGROK_URL=""
-for i in {1..10}; do
-    NGROK_URL=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null | grep -o 'https://[^"]*\.ngrok-free\.app' | head -1)
-    if [ -n "$NGROK_URL" ]; then
-        break
-    fi
-    sleep 1
-done
-
 echo "Service URLs:"
 echo "   - Local nginx: http://localhost:$NGINX_PORT"
-if [ "$SSL_ENABLED" = "true" ]; then
-    echo "   - Local nginx (SSL): https://localhost:$NGINX_SSL_PORT"
-fi
 if [ "$VLLM_BRIDGE_ENABLED" = "true" ]; then
     echo "   - VLLM Bridge: http://localhost:$VLLM_BRIDGE_PORT"
     echo "   - VLLM Chat API: http://localhost:$VLLM_BRIDGE_PORT/v1/chat/completions"
-fi
-echo "   - Ngrok dashboard: http://localhost:4040"
-if [ -n "$NGROK_URL" ]; then
-    echo "   - Ngrok public URL: $NGROK_URL"
-else
-    echo "   - Ngrok public URL: Could not retrieve (check ngrok dashboard)"
 fi
 echo "   - Health check: http://localhost:$NGINX_PORT/health"
 echo ""
@@ -122,7 +102,7 @@ if [ "$VLLM_BRIDGE_ENABLED" = "true" ]; then
     echo "   # LM Studio direct:"
     echo "   curl -u ${NGINX_BASIC_AUTH_USERNAME:-admin}:$NGINX_BASIC_AUTH_PASSWORD http://localhost:$NGINX_PORT/api/tags"
     echo "   # VLLM compatible:"
-    echo "   curl -X POST http://localhost:$VLLM_BRIDGE_PORT/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"$LMSTUDIO_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}'"
+    echo "   curl -X POST http://localhost:$VLLM_BRIDGE_PORT/v1/chat/completions -H 'Content-Type: application/json' -d '{\"model\":\"$VLLM_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}'"
 else
     echo "   curl -u ${NGINX_BASIC_AUTH_USERNAME:-admin}:$NGINX_BASIC_AUTH_PASSWORD http://localhost:$NGINX_PORT/api/tags"
 fi

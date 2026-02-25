@@ -1,0 +1,22 @@
+meta {
+  name: ngrok Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{ngrok_url}}/health
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+docs {
+  # ngrok Health Check
+  
+  Simple health check endpoint through ngrok tunnel that doesn't require authentication.
+  Returns basic status information about the LM Studio proxy service.
+}

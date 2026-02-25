@@ -41,6 +41,10 @@ test: ## Test the API endpoints
 	@echo "⦿ Testing API..."
 	@./scripts/test/test.sh
 
+test-local: ## E2E test the local/RunPod stack (HTTP port 8080)
+	@echo "⦿ Running E2E tests against http://localhost:8080..."
+	@./scripts/test/test-local.sh
+
 clean: ## Clean up containers and volumes
 	@echo "⦿ Cleaning up..."
 	@docker-compose down -v
@@ -51,4 +55,17 @@ update: ## Update and restart services
 	@git pull
 	@$(MAKE) build
 	@$(MAKE) restart
+
+# ── RunPod ────────────────────────────────────────────────────────────────────
+RUNPOD_IMAGE ?= $(shell grep '^RUNPOD_IMAGE' .env 2>/dev/null | cut -d= -f2)
+
+build-runpod: ## Build the RunPod single-container image (linux/amd64)
+	@echo "⦿ Building RunPod image: $(RUNPOD_IMAGE)"
+	@docker build --platform linux/amd64 -f Dockerfile.runpod -t $(RUNPOD_IMAGE) .
+
+push-runpod: ## Push the RunPod image to Docker Hub / GHCR
+	@echo "⦿ Pushing $(RUNPOD_IMAGE)..."
+	@docker push $(RUNPOD_IMAGE)
+
+release-runpod: build-runpod push-runpod ## Build + push in one step
 

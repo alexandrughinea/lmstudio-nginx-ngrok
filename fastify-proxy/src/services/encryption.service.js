@@ -4,7 +4,7 @@ import { ENCODING } from '../server.const.js';
 export class EncryptionService {
   constructor(secret) {
     if (!secret) {
-      throw new Error('`LMSTUDIO_SQLITE_ENCRYPTION_KEY` is required for EncryptionService');
+      throw new Error('`VLLM_SQLITE_ENCRYPTION_KEY` is required for EncryptionService');
     }
     this.key = crypto.createHash('sha256').update(secret, ENCODING).digest();
   }
