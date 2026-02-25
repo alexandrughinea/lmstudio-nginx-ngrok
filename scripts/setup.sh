@@ -128,7 +128,6 @@ echo "- Fastify timeout: ${VLLM_PROXY_REQUEST_TIMEOUT}ms ($(( ${VLLM_PROXY_REQUE
 echo "- Fastify cache: ${VLLM_PROXY_SQLITE_CACHE:-true}"
 echo "- Nginx port: $NGINX_PORT"
 echo "- Nginx timeouts: connect=${NGINX_PROXY_CONNECT_TIMEOUT}s, send/read=${NGINX_PROXY_SEND_TIMEOUT}s"
-echo "- Bridge: $VLLM_BRIDGE_ENABLED (port: $VLLM_BRIDGE_PORT)"
 echo "- Auth username: ${NGINX_BASIC_AUTH_USERNAME}"
 echo "- Auth password: ${NGINX_BASIC_AUTH_PASSWORD}"
 echo "- SSL enabled: $SSL_ENABLED"
