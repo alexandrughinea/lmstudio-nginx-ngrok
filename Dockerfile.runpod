@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── Fastify proxy ─────────────────────────────────────────────────────────────
 WORKDIR /app
 COPY fastify-proxy/package*.json ./
-RUN npm install --production
+RUN npm install --omit=dev
 COPY fastify-proxy/src ./src
 
 # ── nginx config (HTTP-only, port 8080) ───────────────────────────────────────

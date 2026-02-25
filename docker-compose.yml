@@ -43,6 +43,3 @@ services:
 networks:
   vllm-network:
     driver: bridge
-
-volumes:
-  fastify-proxy-data:
