@@ -1,5 +1,5 @@
 meta {
-  name: LM Studio Chat Completions
+  name: Chat Completions
   type: http
   seq: 1
 }
@@ -17,7 +17,7 @@ headers {
 body:json {
   {
     "id": "test-external-id-123",
-    "model": "{{lmstudio_model}}",
+    "model": "{{model}}",
     "messages": [
       {
         "role": "user",
@@ -31,8 +31,7 @@ body:json {
 }
 
 docs {
-  # LM Studio Chat Completions
-  
-  OpenAI-compatible chat completions endpoint for LM Studio.
-  This endpoint supports structured outputs via response_format parameter.
+  # Chat Completions
+
+  OpenAI-compatible chat completions endpoint.
 }

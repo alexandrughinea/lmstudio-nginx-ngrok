@@ -1,12 +1,12 @@
 # vLLM · Fastify · Nginx
 
-A secure, authenticated proxy setup for vLLM (OpenAI-compatible API) with **Nginx** and a **Fastify proxy with an encrypted SQLite cache for requests/responses**. Supports both local development (against LM Studio or any OpenAI-compatible backend) and one-image RunPod deployment.
+A secure, authenticated proxy setup for vLLM and any OpenAI-compatible backend with **Nginx** and a **Fastify proxy with an encrypted SQLite cache for requests/responses**. Supports both local development and one-image RunPod deployment.
 
-- **vLLM / LM Studio Integration** - OpenAI-compatible `/v1/*` API proxied through a Fastify service
+- **vLLM Integration** - OpenAI-compatible `/v1/*` API proxied through a Fastify service
 - **Request/Response Caching** - All `/v1/*` requests and responses are stored in a local, encrypted SQLite cache
 - **Security** - Basic authentication at nginx, rate limiting, security headers
 - **Monitoring** - Health checks, status script, and access logging
-- **Containerized** - Nginx and Fastify proxy run in Docker; backend can be local (LM Studio) or in-container (vLLM on RunPod)
+- **Containerized** - Nginx and Fastify proxy run in Docker; backend can be any local OpenAI-compatible server or in-container vLLM on RunPod
 - **Easy Setup** - Automated setup and management scripts / Makefile targets
 
 ## Make Commands
@@ -31,7 +31,7 @@ A secure, authenticated proxy setup for vLLM (OpenAI-compatible API) with **Ngin
 
 ## Quick Start
 
-### Local development (LM Studio backend)
+### Local development (any OpenAI-compatible backend)
 
 1. **Clone and setup:**
    ```bash
@@ -137,7 +137,7 @@ flowchart LR
   end
 
   subgraph Backend[LLM Backend]
-    LM["vLLM / LM Studio\n${VLLM_HOST}:${VLLM_PORT}"]
+    LM["vLLM / OpenAI-compatible\n${VLLM_HOST}:${VLLM_PORT}"]
   end
 
   U -->|HTTP request + Basic Auth| NX
@@ -228,7 +228,7 @@ make release-runpod
    sudo systemctl start docker   # Linux
    ```
 
-2. **Backend not reachable** — verify `VLLM_HOST` and `VLLM_PORT` in `.env` match your running LM Studio / vLLM instance.
+2. **Backend not reachable** — verify `VLLM_HOST` and `VLLM_PORT` in `.env` match your running vLLM / Ollama / llama.cpp instance.
 
 3. **Model not available**
    ```bash

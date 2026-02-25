@@ -9,11 +9,11 @@ bruno/
 ├── environments/           # Environment configurations
 │   ├── Local.bru          # Local development settings
 │   └── Production.bru     # Production / RunPod settings
-├── lmstudio/              # API endpoints
+├── api/                   # API endpoints
 │   ├── folder.bru
-│   ├── LM Studio Chat Completions.bru
-│   ├── LM Studio Chat Completions (with schema).bru
-│   └── LM Studio List Models.bru
+│   ├── Chat Completions.bru
+│   ├── Chat Completions (with schema).bru
+│   └── List Models.bru
 ├── Authentication Test.bru # Auth test
 ├── Health Check.bru        # Health check
 ├── bruno.json

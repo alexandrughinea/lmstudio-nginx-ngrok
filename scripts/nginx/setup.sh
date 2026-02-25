@@ -122,10 +122,10 @@ EOF
     cat >> "$OUT_FILE" <<'EOF'
 
     # Global authentication
-    auth_basic "LM Studio API Access";
+    auth_basic "API Access";
     auth_basic_user_file /etc/nginx/.htpasswd;
 
-    # LM Studio OpenAI-compatible endpoints via Fastify proxy
+    # OpenAI-compatible endpoints via Fastify proxy
     location /v1/ {
 EOF
     cat >> "$OUT_FILE" <<EOF

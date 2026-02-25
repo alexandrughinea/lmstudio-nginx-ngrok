@@ -1,5 +1,5 @@
 meta {
-  name: LM Studio Chat Completions (with schema)
+  name: Chat Completions (with schema)
   type: http
   seq: 2
 }
@@ -16,7 +16,7 @@ headers {
 
 body:json {
   {
-    "model": "{{lmstudio_model}}",
+    "model": "{{model}}",
     "messages": [
       {
         "role": "user",
@@ -34,24 +34,11 @@ body:json {
         "schema": {
           "type": "object",
           "properties": {
-            "name": {
-              "type": "string"
-            },
-            "age": {
-              "type": "integer"
-            },
-            "profession": {
-              "type": "string"
-            },
-            "location": {
-              "type": "string"
-            },
-            "hobbies": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
+            "name": { "type": "string" },
+            "age": { "type": "integer" },
+            "profession": { "type": "string" },
+            "location": { "type": "string" },
+            "hobbies": { "type": "array", "items": { "type": "string" } }
           },
           "required": ["name", "age", "profession", "location", "hobbies"]
         }
@@ -61,8 +48,7 @@ body:json {
 }
 
 docs {
-  # LM Studio Chat Completions with Structured Output
-  
-  Demonstrates LM Studio's structured output capabilities using JSON schema.
-  LM Studio enforces schema compliance at the inference level for high-quality results.
+  # Chat Completions with Structured Output
+
+  Demonstrates structured output via JSON schema (`response_format`).
 }

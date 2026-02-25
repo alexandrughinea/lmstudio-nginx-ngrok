@@ -1,15 +1,15 @@
-# LM Studio Nginx Ngrok - Makefile
+# vLLM · Fastify · Nginx - Makefile
 .PHONY: help setup build start stop restart status logs test clean update
 
 # Default target
 help: ## Show this help message
-	@echo "LM Studio, Fastify, Nginx, Ngrok - Available Commands:"
+	@echo "vLLM · Fastify · Nginx — Available Commands:"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 
 setup: ## Setup the environment and dependencies
-	@echo "⦿ Setting up LM Studio, Fastify, Nginx, Ngrok..."
+	@echo "⦿ Setting up vLLM, Fastify, Nginx..."
 	@chmod +x scripts/*.sh
 	@./scripts/setup.sh
 

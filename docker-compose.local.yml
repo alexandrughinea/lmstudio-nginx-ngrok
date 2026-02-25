@@ -1,11 +1,11 @@
 # Local development overlay (Mac / no GPU)
 #
 # Tests the full nginx → fastify-proxy pipeline against any locally-running
-# OpenAI-compatible backend (LM Studio, Ollama, llama.cpp, etc.).
+# OpenAI-compatible backend (vLLM, Ollama, llama.cpp, etc.).
 # No vLLM container, HTTP-only nginx on port 8080.
 #
 # Usage:
-#   # With LM Studio running on localhost:1234:
+#   # With any OpenAI-compatible backend on localhost:1234:
 #   VLLM_HOST=host.docker.internal VLLM_PORT=1234 \
 #   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 #

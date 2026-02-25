@@ -98,23 +98,6 @@ if [ "$SSL_ENABLED" = "true" ]; then
     echo "SSL certificates generated"
 fi
 
-echo "Checking LM Studio CLI..."
-if ! command -v lms >/dev/null 2>&1; then
-    echo "LM Studio CLI (lms) not found"
-    echo "   Please install LM Studio from: https://lmstudio.ai/"
-    echo "   The CLI should be available after installation"
-    exit 1
-fi
-
-echo "Checking LM Studio status..."
-LMS_STATUS=$(lms status 2>/dev/null || echo "error")
-if [[ "$LMS_STATUS" == *"error"* ]]; then
-    echo "Could not get LM Studio status"
-    echo "   Please ensure LM Studio is properly installed and accessible"
-else
-    echo "LM Studio CLI is working"
-fi
-
 echo "Checking Docker..."
 if ! command -v docker >/dev/null 2>&1; then
     echo "Docker not found. Please install Docker first."
@@ -145,7 +128,7 @@ echo "- Fastify timeout: ${VLLM_PROXY_REQUEST_TIMEOUT}ms ($(( ${VLLM_PROXY_REQUE
 echo "- Fastify cache: ${VLLM_PROXY_SQLITE_CACHE:-true}"
 echo "- Nginx port: $NGINX_PORT"
 echo "- Nginx timeouts: connect=${NGINX_PROXY_CONNECT_TIMEOUT}s, send/read=${NGINX_PROXY_SEND_TIMEOUT}s"
-echo "- VLLM Bridge: $VLLM_BRIDGE_ENABLED (port: $VLLM_BRIDGE_PORT)"
+echo "- Bridge: $VLLM_BRIDGE_ENABLED (port: $VLLM_BRIDGE_PORT)"
 echo "- Auth username: ${NGINX_BASIC_AUTH_USERNAME}"
 echo "- Auth password: ${NGINX_BASIC_AUTH_PASSWORD}"
 echo "- SSL enabled: $SSL_ENABLED"

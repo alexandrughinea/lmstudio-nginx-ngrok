@@ -16,7 +16,7 @@ graph TB
     end
 
     subgraph "LLM Backend"
-        Backend[vLLM / LM Studio<br/>VLLM_HOST:VLLM_PORT]
+        Backend[vLLM / OpenAI-compatible<br/>VLLM_HOST:VLLM_PORT]
     end
 
     Client -->|HTTP + Basic Auth| NginxProxy
