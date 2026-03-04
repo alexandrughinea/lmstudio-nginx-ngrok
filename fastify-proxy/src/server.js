@@ -191,14 +191,14 @@ fastify.all('/v1/*', async (request, reply) => {
       return;
     }
 
-    reply.code(upstream.statusCode);
-
-    for (const [key, value] of Object.entries(upstream.headers)) {
-      if (key.toLowerCase() === 'content-length') continue;
-      reply.header(key, value);
-    }
-
     if (!isStream) {
+      reply.code(upstream.statusCode);
+
+      for (const [key, value] of Object.entries(upstream.headers)) {
+        if (key.toLowerCase() === 'content-length') continue;
+        reply.header(key, value);
+      }
+
       const chunks = [];
 
       for await (const chunk of upstream.body) {
@@ -255,6 +255,15 @@ fastify.all('/v1/*', async (request, reply) => {
       }
       return;
     }
+
+    const streamHeaders = {};
+    for (const [key, value] of Object.entries(upstream.headers)) {
+      if (key.toLowerCase() === 'content-length') continue;
+      streamHeaders[key] = value;
+    }
+
+    reply.hijack();
+    reply.raw.writeHead(upstream.statusCode, streamHeaders);
 
     const chunks = [];
     upstream.body.on('data', (chunk) => {

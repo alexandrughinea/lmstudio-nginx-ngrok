@@ -142,9 +142,14 @@ EOF
         proxy_read_timeout ${NGINX_PROXY_READ_TIMEOUT}s;
         proxy_buffering off;
         proxy_request_buffering off;
+        proxy_cache off;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
-        proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+        proxy_next_upstream error timeout invalid_header http_500 http_503 http_504;
+
+        # Server-sent events / streaming support
+        add_header X-Accel-Buffering "no";
+        add_header Cache-Control "no-cache";
     }
 
     # Health check
@@ -171,9 +176,14 @@ EOF
         proxy_read_timeout ${NGINX_PROXY_READ_TIMEOUT}s;
         proxy_buffering off;
         proxy_request_buffering off;
+        proxy_cache off;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+
+        # Server-sent events / streaming support
+        add_header X-Accel-Buffering "no";
+        add_header Cache-Control "no-cache";
     }
 }
 EOF
